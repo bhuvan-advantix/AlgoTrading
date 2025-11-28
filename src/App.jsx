@@ -512,274 +512,369 @@ const DashboardPage = () => {
     // Legacy endpoint removed - use /api/ai-picks endpoint in backend if needed
     const [orderConfirmation, setOrderConfirmation] = useState(null);
 
-};
+    const placeOrder = async () => {
+        // Basic validation
+        if (!orderSymbol) {
+            alertUser({ type: 'error', message: 'Please enter a symbol to trade.' });
+            return;
+        }
 
-return (
-    <div className="p-4 sm:p-6 space-y-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6 tracking-tight">Advantix AGI Algo Dashboard</h1>
+        if (!orderQty || orderQty <= 0) {
+            alertUser({ type: 'error', message: 'Please enter a valid quantity.' });
+            return;
+        }
 
-        {/* Quick Order removed from the top banner - now placed in Control Panel (right column) for a professional layout */}
-        {/* Zerodha Connection Banner */}
-        {showZerodhaPrompt && (
-            <>
-                {/* Large banner for sm+ devices */}
-                <div className="hidden sm:flex bg-gray-800 border-l-4 border-yellow-500 p-4 mb-6 rounded-r-xl">
+        // If user requests Live mode orders ensure Kite is connected
+        if (mode === 'Live' && !isKiteConnected) {
+            alertUser({ type: 'error', message: 'Zerodha not connected. Please connect to place Live orders.' });
+            // Navigate user to auth page to connect
+            setCurrentPage('auth');
+            return;
+        }
+
+        setIsPlacingOrder(true);
+
+        try {
+            const payload = {
+                symbol: orderSymbol.toUpperCase(),
+                type: orderSide,
+                quantity: parseInt(orderQty, 10),
+                orderType: orderType === 'LIMIT' ? 'LIMIT' : 'MARKET',
+                price: orderType === 'LIMIT' ? parseFloat(limitPrice || 0) : undefined,
+                mode // Paper|Live - backend can decide what to do
+            };
+
+            // Optionally fetch latest market price preview for this symbol (best-effort)
+            try {
+                const s = payload.symbol;
+                const qp = await fetch(`${MARKET_API_BASE}/quote/${encodeURIComponent(s)}`);
+                if (qp.ok) {
+                    const qj = await qp.json();
+                    if (qj?.ok && qj.currentPrice) {
+                        payload.price = payload.price || qj.currentPrice;
+                    }
+                }
+            } catch (err) {
+                // non-fatal
+            }
+
+            const response = await fetchWithRetry(`${API_BASE}/trades/execute`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-user-id': userId || ''
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (data && data.success) {
+                const placed = data.order || {};
+                const confirmation = {
+                    orderId: data.orderId || placed.orderId || 'N/A',
+                    symbol: placed.symbol || payload.symbol,
+                    quantity: placed.quantity || payload.quantity,
+                    price: placed.price || payload.price || 'Market',
+                    status: placed.status || 'EXECUTED',
+                    timestamp: new Date().toISOString(),
+                    message: data.message || 'Order executed'
+                };
+
+                setOrderConfirmation(confirmation);
+                alertUser({ type: 'success', message: `Order accepted — ${confirmation.orderId}` });
+
+                // Update run log locally (best-effort)
+                if (data.order) {
+                    setRunLog(prev => [data.order, ...(prev || [])]);
+                }
+
+                // Clear basic inputs
+                setOrderSymbol('');
+                setOrderQty(1);
+                setOrderPrice('');
+            } else {
+                // Present a professional, actionable message
+                const userMessage = data?.error ? `${data.error}` : 'Order placement failed. Please review your inputs and try again.';
+                alertUser({ type: 'error', message: userMessage });
+                console.warn('Order placement failed details:', data);
+            }
+
+        } catch (err) {
+            // Friendly error for network/internal issues
+            alertUser({ type: 'error', message: 'Unable to place order due to a network or server error. Please try again or contact support.' });
+            console.error('Place order exception:', err);
+        } finally {
+            setIsPlacingOrder(false);
+        }
+    };
+
+    return (
+        <div className="p-4 sm:p-6 space-y-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6 tracking-tight">Advantix AGI Algo Dashboard</h1>
+
+            {/* Quick Order removed from the top banner - now placed in Control Panel (right column) for a professional layout */}
+            {/* Zerodha Connection Banner */}
+            {showZerodhaPrompt && (
+                <>
+                    {/* Large banner for sm+ devices */}
+                    <div className="hidden sm:flex bg-gray-800 border-l-4 border-yellow-500 p-4 mb-6 rounded-r-xl">
+                        <div className="flex items-center">
+                            <ShieldIcon className="w-6 h-6 text-yellow-500 mr-3" />
+                            <div>
+                                <h3 className="text-lg font-medium text-white">Connect Zerodha for Live Trading</h3>
+                                <p className="text-gray-400 mt-1">Your account needs to be connected to Zerodha to enable live trading features.</p>
+                                <Button
+                                    variant="outline"
+                                    className="mt-3"
+                                    onClick={() => setCurrentPage('auth')}
+                                >
+                                    Connect Zerodha Account
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Compact inline notice for xs screens */}
+                    <div className="sm:hidden mb-4">
+                        <div className="flex items-center justify-between bg-yellow-900/10 border border-yellow-500/20 p-2 rounded-md">
+                            <div className="flex items-center space-x-2">
+                                <ShieldIcon className="w-4 h-4 text-yellow-400" />
+                                <span className="text-xs text-yellow-300">Live mode requires Zerodha connection</span>
+                            </div>
+                            <button onClick={() => setCurrentPage('auth')} className="text-xs text-yellow-200 bg-yellow-800/20 px-2 py-1 rounded-md">Connect</button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* --- TOP BANNER STATS & EAL --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <Card title="Daily P&L" className="col-span-1 border-2 border-transparent hover:border-teal-500">
+                    <p className={`text-2xl sm:text-3xl font-extrabold ${dailyPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {formatCurrency(dailyPnl)}
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-400 mt-1">Daily Cap: {formatCurrency(riskParams.dailyLossCap)}</p>
+                </Card>
+
+                <Card title="Trades Executed" className="col-span-1 border-2 border-transparent hover:border-teal-500">
+                    <p className="text-2xl sm:text-3xl font-extrabold text-teal-400">
+                        {tradeCount} <span className="text-xl text-gray-400">/ {riskParams.maxTrades}</span>
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-400 mt-1">Trade Window: 09:15 - {riskParams.tradeWindowEnd} IST</p>
+                </Card>
+
+                <Card title="Volatility Regime " className={`col-span-1 ${eal.bg} bg-opacity-30 border border-gray-700 hover:border-teal-500`}>
                     <div className="flex items-center">
-                        <ShieldIcon className="w-6 h-6 text-yellow-500 mr-3" />
-                        <div>
-                            <h3 className="text-lg font-medium text-white">Connect Zerodha for Live Trading</h3>
-                            <p className="text-gray-400 mt-1">Your account needs to be connected to Zerodha to enable live trading features.</p>
-                            <Button
-                                variant="outline"
-                                className="mt-3"
-                                onClick={() => setCurrentPage('auth')}
-                            >
-                                Connect Zerodha Account
-                            </Button>
-                        </div>
+                        <eal.icon className={`w-6 h-6 mr-2 ${eal.text}`} />
+                        <p className={`text-2xl sm:text-3xl font-extrabold ${eal.text}`}>{ealStatus}</p>
                     </div>
-                </div>
-
-                {/* Compact inline notice for xs screens */}
-                <div className="sm:hidden mb-4">
-                    <div className="flex items-center justify-between bg-yellow-900/10 border border-yellow-500/20 p-2 rounded-md">
-                        <div className="flex items-center space-x-2">
-                            <ShieldIcon className="w-4 h-4 text-yellow-400" />
-                            <span className="text-xs text-yellow-300">Live mode requires Zerodha connection</span>
-                        </div>
-                        <button onClick={() => setCurrentPage('auth')} className="text-xs text-yellow-200 bg-yellow-800/20 px-2 py-1 rounded-md">Connect</button>
-                    </div>
-                </div>
-            </>
-        )}
-
-        {/* --- TOP BANNER STATS & EAL --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            <Card title="Daily P&L" className="col-span-1 border-2 border-transparent hover:border-teal-500">
-                <p className={`text-2xl sm:text-3xl font-extrabold ${dailyPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {formatCurrency(dailyPnl)}
-                </p>
-                <p className="text-xs sm:text-sm text-gray-400 mt-1">Daily Cap: {formatCurrency(riskParams.dailyLossCap)}</p>
-            </Card>
-
-            <Card title="Trades Executed" className="col-span-1 border-2 border-transparent hover:border-teal-500">
-                <p className="text-2xl sm:text-3xl font-extrabold text-teal-400">
-                    {tradeCount} <span className="text-xl text-gray-400">/ {riskParams.maxTrades}</span>
-                </p>
-                <p className="text-xs sm:text-sm text-gray-400 mt-1">Trade Window: 09:15 - {riskParams.tradeWindowEnd} IST</p>
-            </Card>
-
-            <Card title="Volatility Regime " className={`col-span-1 ${eal.bg} bg-opacity-30 border border-gray-700 hover:border-teal-500`}>
-                <div className="flex items-center">
-                    <eal.icon className={`w-6 h-6 mr-2 ${eal.text}`} />
-                    <p className={`text-2xl sm:text-3xl font-extrabold ${eal.text}`}>{ealStatus}</p>
-                </div>
-                <p className="text-xs sm:text-sm text-gray-400 mt-1">Global events analyzed pre-open.</p>
-            </Card>
-
-            <Card title="System Status" className={`col-span-1 border-2 border-transparent hover:border-teal-500`}>
-                <div className="flex flex-col space-y-2">
-                    <span className={`inline-flex items-center text-sm font-medium ${isRunning ? 'text-green-400' : 'text-yellow-400'}`}>
-                        <span className={`w-3 h-3 rounded-full mr-2 ${isRunning ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
-                        Algo Status: {isRunning ? 'RUNNING' : 'HALTED'}
-                    </span>
-                    <span className={`inline-flex items-center text-sm font-medium ${isKiteConnected ? 'text-green-400' : 'text-red-400'}`}>
-                        <span className={`w-3 h-3 rounded-full mr-2 ${isKiteConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                        Kite Connect: {isKiteConnected ? 'CONNECTED' : 'DISCONNECTED'}
-                    </span>
-                </div>
-            </Card>
-        </div>
-
-        {/* --- CONTROL, RECOMMENDATIONS, & RISK SETUP --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-
-            {/* Left Column: AI Stock Search & Analysis */}
-            <Card title="AI Stock Search & Analysis (Institutional Grade)" titleIcon={ZapIcon} className="lg:col-span-2">
-                <StockSearchAI />
-            </Card>
-
-            {/* Right Column: Risk Setup & Control */}
-            <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-                {/* Control Panel */}
-                <Card title="Control Panel" titleIcon={MaximizeIcon}>
-                    <div className="flex justify-between items-center mb-4">
-                        <span className="text-gray-400">Mode:</span>
-                        <div className="flex bg-gray-700 p-1 rounded-lg">
-                            <Button onClick={() => handleModeSelect('Paper')} variant={mode === 'Paper' ? 'primary' : 'secondary'} className="px-3 py-1 text-sm mr-1 !shadow-none">Paper (Sim)</Button>
-                            <Button onClick={() => handleModeSelect('Live')} variant={mode === 'Live' ? 'primary' : 'secondary'} className="px-3 py-1 text-sm !shadow-none">Live</Button>
-                        </div>
-                    </div>
-                    <Button
-                        onClick={handleRunToggle}
-                        variant={isRunning ? 'danger' : 'primary'}
-                        className="w-full text-lg"
-                    >
-                        {isRunning ? <XCircleIcon /> : <CheckCircleIcon />}
-                        {isRunning ? 'HALT & FLATTEN' : 'START SESSION'}
-                    </Button>
-                    {checkGuardrails.isDailyLossCapBreached && <p className="text-xs text-red-500 mt-2 font-semibold">GUARDRAIL BREACH: Daily Loss Cap hit. System is halted.</p>}
-                    {!isKiteConnected && mode === 'Live' && <p className="text-xs text-red-500 mt-2 font-semibold">Kite Disconnected. Live Mode is disabled.</p>}
+                    <p className="text-xs sm:text-sm text-gray-400 mt-1">Global events analyzed pre-open.</p>
                 </Card>
 
-                {/* Compact Order Card placed under Control Panel for professional layout */}
-                <Card title="Place Order" titleIcon={TrendingUpIcon} className="mt-4">
-                    <div className="space-y-3 text-sm text-gray-300">
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="text-xs text-gray-400">Symbol</label>
-                                <input type="text" value={orderSymbol} onChange={(e) => setOrderSymbol(e.target.value)} placeholder="RELIANCE" className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white" />
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-400">Qty</label>
-                                <input type="number" min="1" value={orderQty} onChange={(e) => setOrderQty(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white" />
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 sm:space-x-2">
-                            <div className="flex space-x-2 w-full sm:w-auto">
-                                <button onClick={() => setOrderSide('BUY')} className={`flex-1 px-3 py-1 rounded-md text-sm ${orderSide === 'BUY' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300'}`}>BUY</button>
-                                <button onClick={() => setOrderSide('SELL')} className={`flex-1 px-3 py-1 rounded-md text-sm ${orderSide === 'SELL' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'}`}>SELL</button>
-                            </div>
-
-                            <div className="flex items-center space-x-2 w-full sm:w-auto">
-                                <select value={orderType} onChange={(e) => setOrderType(e.target.value)} className="flex-1 bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-xs">
-                                    <option value="MARKET">Market</option>
-                                    <option value="LIMIT">Limit</option>
-                                </select>
-                                {orderType === 'LIMIT' && (
-                                    <input type="number" value={limitPrice} onChange={(e) => setOrderPrice(e.target.value)} placeholder="Limit" className="flex-1 w-24 bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-xs" />
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                            <Button onClick={placeOrder} disabled={isPlacingOrder || (mode === 'Live' && !isKiteConnected)} className="px-4 py-2 flex-1">
-                                {isPlacingOrder ? 'Placing...' : `${orderSide} ${orderSymbol || ''}`}
-                            </Button>
-                            <Button variant="outline" onClick={() => { setOrderSymbol(''); setOrderQty(1); setOrderPrice(''); }} className="flex-1">Reset</Button>
-                        </div>
-
-                        {!isKiteConnected && mode === 'Live' && (
-                            <div className="text-xs text-yellow-300">Live orders require Zerodha connection. <Button variant="outline" className="ml-2" onClick={() => setCurrentPage('auth')}>Connect</Button></div>
-                        )}
+                <Card title="System Status" className={`col-span-1 border-2 border-transparent hover:border-teal-500`}>
+                    <div className="flex flex-col space-y-2">
+                        <span className={`inline-flex items-center text-sm font-medium ${isRunning ? 'text-green-400' : 'text-yellow-400'}`}>
+                            <span className={`w-3 h-3 rounded-full mr-2 ${isRunning ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
+                            Algo Status: {isRunning ? 'RUNNING' : 'HALTED'}
+                        </span>
+                        <span className={`inline-flex items-center text-sm font-medium ${isKiteConnected ? 'text-green-400' : 'text-red-400'}`}>
+                            <span className={`w-3 h-3 rounded-full mr-2 ${isKiteConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                            Kite Connect: {isKiteConnected ? 'CONNECTED' : 'DISCONNECTED'}
+                        </span>
                     </div>
                 </Card>
+            </div>
 
-                {/* Order Confirmation */}
-                {orderConfirmation && (
-                    <Card title="Order Confirmation" titleIcon={CheckCircleIcon} className="mt-4 border-l-4 border-green-500">
-                        <div className="text-sm text-gray-200 space-y-2">
-                            <div className="flex justify-between text-xs text-gray-400">
-                                <span>Order ID</span>
-                                <span className="font-mono text-teal-300">{orderConfirmation.orderId}</span>
+            {/* --- CONTROL, RECOMMENDATIONS, & RISK SETUP --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+
+                {/* Left Column: AI Stock Search & Analysis */}
+                <Card title="AI Stock Search & Analysis (Institutional Grade)" titleIcon={ZapIcon} className="lg:col-span-2">
+                    <StockSearchAI />
+                </Card>
+
+                {/* Right Column: Risk Setup & Control */}
+                <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+                    {/* Control Panel */}
+                    <Card title="Control Panel" titleIcon={MaximizeIcon}>
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-gray-400">Mode:</span>
+                            <div className="flex bg-gray-700 p-1 rounded-lg">
+                                <Button onClick={() => handleModeSelect('Paper')} variant={mode === 'Paper' ? 'primary' : 'secondary'} className="px-3 py-1 text-sm mr-1 !shadow-none">Paper (Sim)</Button>
+                                <Button onClick={() => handleModeSelect('Live')} variant={mode === 'Live' ? 'primary' : 'secondary'} className="px-3 py-1 text-sm !shadow-none">Live</Button>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-300">{orderConfirmation.symbol}</span>
-                                <span className="font-semibold">{orderConfirmation.quantity} @ {orderConfirmation.price}</span>
+                        </div>
+                        <Button
+                            onClick={handleRunToggle}
+                            variant={isRunning ? 'danger' : 'primary'}
+                            className="w-full text-lg"
+                        >
+                            {isRunning ? <XCircleIcon /> : <CheckCircleIcon />}
+                            {isRunning ? 'HALT & FLATTEN' : 'START SESSION'}
+                        </Button>
+                        {checkGuardrails.isDailyLossCapBreached && <p className="text-xs text-red-500 mt-2 font-semibold">GUARDRAIL BREACH: Daily Loss Cap hit. System is halted.</p>}
+                        {!isKiteConnected && mode === 'Live' && <p className="text-xs text-red-500 mt-2 font-semibold">Kite Disconnected. Live Mode is disabled.</p>}
+                    </Card>
+
+                    {/* Compact Order Card placed under Control Panel for professional layout */}
+                    <Card title="Place Order" titleIcon={TrendingUpIcon} className="mt-4">
+                        <div className="space-y-3 text-sm text-gray-300">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-xs text-gray-400">Symbol</label>
+                                    <input type="text" value={orderSymbol} onChange={(e) => setOrderSymbol(e.target.value)} placeholder="RELIANCE" className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400">Qty</label>
+                                    <input type="number" min="1" value={orderQty} onChange={(e) => setOrderQty(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white" />
+                                </div>
                             </div>
-                            <div className="text-xs text-gray-400">Status: <span className="text-teal-300">{orderConfirmation.status}</span></div>
-                            <div className="pt-2">
-                                <Button variant="outline" onClick={() => setOrderConfirmation(null)}>Dismiss</Button>
+
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 sm:space-x-2">
+                                <div className="flex space-x-2 w-full sm:w-auto">
+                                    <button onClick={() => setOrderSide('BUY')} className={`flex-1 px-3 py-1 rounded-md text-sm ${orderSide === 'BUY' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300'}`}>BUY</button>
+                                    <button onClick={() => setOrderSide('SELL')} className={`flex-1 px-3 py-1 rounded-md text-sm ${orderSide === 'SELL' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'}`}>SELL</button>
+                                </div>
+
+                                <div className="flex items-center space-x-2 w-full sm:w-auto">
+                                    <select value={orderType} onChange={(e) => setOrderType(e.target.value)} className="flex-1 bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-xs">
+                                        <option value="MARKET">Market</option>
+                                        <option value="LIMIT">Limit</option>
+                                    </select>
+                                    {orderType === 'LIMIT' && (
+                                        <input type="number" value={limitPrice} onChange={(e) => setOrderPrice(e.target.value)} placeholder="Limit" className="flex-1 w-24 bg-gray-700 border border-gray-600 rounded-md p-2 text-white text-xs" />
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <Button onClick={placeOrder} disabled={isPlacingOrder || (mode === 'Live' && !isKiteConnected)} className="px-4 py-2 flex-1">
+                                    {isPlacingOrder ? 'Placing...' : `${orderSide} ${orderSymbol || ''}`}
+                                </Button>
+                                <Button variant="outline" onClick={() => { setOrderSymbol(''); setOrderQty(1); setOrderPrice(''); }} className="flex-1">Reset</Button>
+                            </div>
+
+                            {!isKiteConnected && mode === 'Live' && (
+                                <div className="text-xs text-yellow-300">Live orders require Zerodha connection. <Button variant="outline" className="ml-2" onClick={() => setCurrentPage('auth')}>Connect</Button></div>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* Order Confirmation */}
+                    {orderConfirmation && (
+                        <Card title="Order Confirmation" titleIcon={CheckCircleIcon} className="mt-4 border-l-4 border-green-500">
+                            <div className="text-sm text-gray-200 space-y-2">
+                                <div className="flex justify-between text-xs text-gray-400">
+                                    <span>Order ID</span>
+                                    <span className="font-mono text-teal-300">{orderConfirmation.orderId}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-300">{orderConfirmation.symbol}</span>
+                                    <span className="font-semibold">{orderConfirmation.quantity} @ {orderConfirmation.price}</span>
+                                </div>
+                                <div className="text-xs text-gray-400">Status: <span className="text-teal-300">{orderConfirmation.status}</span></div>
+                                <div className="pt-2">
+                                    <Button variant="outline" onClick={() => setOrderConfirmation(null)}>Dismiss</Button>
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+
+                    {/* Risk Setup Panel */}
+                    <Card title="Daily Risk Setup" titleIcon={ShieldIcon}>
+                        <div className="space-y-3">
+                            {/* Daily Capital */}
+                            <div className="flex justify-between items-center">
+                                <label className="text-gray-300 text-sm">Daily Capital (INR)</label>
+                                <input
+                                    type="number"
+                                    value={riskParams.dailyCapital}
+                                    onChange={(e) => handleRiskChange('dailyCapital', parseFloat(e.target.value) || 0)}
+                                    className="w-1/3 bg-gray-700 border border-gray-600 rounded-md p-2 text-right text-teal-400 focus:ring-teal-500 focus:border-teal-500"
+                                />
+                            </div>
+                            {/* Max Trades */}
+                            <div className="flex justify-between items-center">
+                                <label className="text-gray-300 text-sm">Max Trades / Day</label>
+                                <input
+                                    type="number"
+                                    value={riskParams.maxTrades}
+                                    onChange={(e) => handleRiskChange('maxTrades', parseInt(e.target.value) || 1)}
+                                    min="1" max="5"
+                                    className="w-1/3 bg-gray-700 border border-gray-600 rounded-md p-2 text-right text-teal-400"
+                                />
+                            </div>
+                            {/* Daily Loss Cap */}
+                            <div className="flex justify-between items-center">
+                                <label className="text-gray-300 text-sm">Daily Loss Cap (Hard Stop)</label>
+                                <input
+                                    type="number"
+                                    value={riskParams.dailyLossCap}
+                                    onChange={(e) => handleRiskChange('dailyLossCap', parseFloat(e.target.value) || 0)}
+                                    className="w-1/3 bg-gray-700 border border-gray-600 rounded-md p-2 text-right text-red-400"
+                                />
+                            </div>
+                            {/* Time Window End */}
+                            <div className="flex justify-between items-center">
+                                <label className="text-gray-300 text-sm">Time Exit (IST)</label>
+                                <input
+                                    type="time"
+                                    value={riskParams.tradeWindowEnd}
+                                    onChange={(e) => handleRiskChange('tradeWindowEnd', e.target.value)}
+                                    className="w-1/3 bg-gray-700 border border-gray-600 rounded-md p-2 text-right text-teal-400"
+                                />
+                            </div>
+                            {/* AI Override Toggle */}
+                            <div className="flex justify-between items-center pt-2 border-t border-gray-700">
+                                <label className="text-gray-300 text-sm">Allow AI Risk Override</label>
+                                <input
+                                    type="checkbox"
+                                    checked={riskParams.allowAIOverride}
+                                    onChange={(e) => handleRiskChange('allowAIOverride', e.target.checked)}
+                                    className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                                />
                             </div>
                         </div>
                     </Card>
-                )}
-
-                {/* Risk Setup Panel */}
-                <Card title="Daily Risk Setup" titleIcon={ShieldIcon}>
-                    <div className="space-y-3">
-                        {/* Daily Capital */}
-                        <div className="flex justify-between items-center">
-                            <label className="text-gray-300 text-sm">Daily Capital (INR)</label>
-                            <input
-                                type="number"
-                                value={riskParams.dailyCapital}
-                                onChange={(e) => handleRiskChange('dailyCapital', parseFloat(e.target.value) || 0)}
-                                className="w-1/3 bg-gray-700 border border-gray-600 rounded-md p-2 text-right text-teal-400 focus:ring-teal-500 focus:border-teal-500"
-                            />
-                        </div>
-                        {/* Max Trades */}
-                        <div className="flex justify-between items-center">
-                            <label className="text-gray-300 text-sm">Max Trades / Day</label>
-                            <input
-                                type="number"
-                                value={riskParams.maxTrades}
-                                onChange={(e) => handleRiskChange('maxTrades', parseInt(e.target.value) || 1)}
-                                min="1" max="5"
-                                className="w-1/3 bg-gray-700 border border-gray-600 rounded-md p-2 text-right text-teal-400"
-                            />
-                        </div>
-                        {/* Daily Loss Cap */}
-                        <div className="flex justify-between items-center">
-                            <label className="text-gray-300 text-sm">Daily Loss Cap (Hard Stop)</label>
-                            <input
-                                type="number"
-                                value={riskParams.dailyLossCap}
-                                onChange={(e) => handleRiskChange('dailyLossCap', parseFloat(e.target.value) || 0)}
-                                className="w-1/3 bg-gray-700 border border-gray-600 rounded-md p-2 text-right text-red-400"
-                            />
-                        </div>
-                        {/* Time Window End */}
-                        <div className="flex justify-between items-center">
-                            <label className="text-gray-300 text-sm">Time Exit (IST)</label>
-                            <input
-                                type="time"
-                                value={riskParams.tradeWindowEnd}
-                                onChange={(e) => handleRiskChange('tradeWindowEnd', e.target.value)}
-                                className="w-1/3 bg-gray-700 border border-gray-600 rounded-md p-2 text-right text-teal-400"
-                            />
-                        </div>
-                        {/* AI Override Toggle */}
-                        <div className="flex justify-between items-center pt-2 border-t border-gray-700">
-                            <label className="text-gray-300 text-sm">Allow AI Risk Override</label>
-                            <input
-                                type="checkbox"
-                                checked={riskParams.allowAIOverride}
-                                onChange={(e) => handleRiskChange('allowAIOverride', e.target.checked)}
-                                className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-                            />
-                        </div>
-                    </div>
-                </Card>
+                </div>
             </div>
-        </div>
 
-        {/* --- RUN LOG --- */}
-        <Card title="Session Run Log" titleIcon={ClockIcon}>
-            <div className="max-h-80 overflow-y-auto">
-                <table className="min-w-full divide-y divide-gray-700">
-                    <thead>
-                        <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-400 sticky top-0 bg-gray-800/95">
-                            <th className="py-2 px-3">Time</th>
-                            <th className="py-2 px-3">Type</th>
-                            <th className="py-2 px-3">Symbol</th>
-                            <th className="py-2 px-3 text-right">Price (INR)</th>
-                            <th className="py-2 px-3 text-right">Qty</th>
-                            <th className="py-2 px-3 text-right">P&L (INR)</th>
-                            <th className="py-2 px-3">Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-700 text-sm">
-                        {runLog.map((log) => (
-                            <tr key={log.id} className="hover:bg-gray-700/50 text-gray-300">
-                                <td className="py-2 px-3 font-mono text-xs">{log.timestamp}</td>
-                                <td className="py-2 px-3 font-semibold text-teal-400">{log.type}</td>
-                                <td className="py-2 px-3 text-white">{log.symbol}</td>
-                                <td className="py-2 px-3 text-right">{log.price ? formatCurrency(log.price).replace('₹', '') : '---'}</td>
-                                <td className="py-2 px-3 text-right">{log.qty || '---'}</td>
-                                <td className={`py-2 px-3 text-right font-bold ${log.pnl > 0 ? 'text-green-500' : log.pnl < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                                    {log.pnl ? formatCurrency(log.pnl) : '---'}
-                                </td>
-                                <td className="py-2 px-3 text-xs text-gray-400">{log.notes}</td>
+            {/* --- RUN LOG --- */}
+            <Card title="Session Run Log" titleIcon={ClockIcon}>
+                <div className="max-h-80 overflow-y-auto">
+                    <table className="min-w-full divide-y divide-gray-700">
+                        <thead>
+                            <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-400 sticky top-0 bg-gray-800/95">
+                                <th className="py-2 px-3">Time</th>
+                                <th className="py-2 px-3">Type</th>
+                                <th className="py-2 px-3">Symbol</th>
+                                <th className="py-2 px-3 text-right">Price (INR)</th>
+                                <th className="py-2 px-3 text-right">Qty</th>
+                                <th className="py-2 px-3 text-right">P&L (INR)</th>
+                                <th className="py-2 px-3">Notes</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </Card>
-    </div>
-);
+                        </thead>
+                        <tbody className="divide-y divide-gray-700 text-sm">
+                            {runLog.map((log) => (
+                                <tr key={log.id} className="hover:bg-gray-700/50 text-gray-300">
+                                    <td className="py-2 px-3 font-mono text-xs">{log.timestamp}</td>
+                                    <td className="py-2 px-3 font-semibold text-teal-400">{log.type}</td>
+                                    <td className="py-2 px-3 text-white">{log.symbol}</td>
+                                    <td className="py-2 px-3 text-right">{log.price ? formatCurrency(log.price).replace('₹', '') : '---'}</td>
+                                    <td className="py-2 px-3 text-right">{log.qty || '---'}</td>
+                                    <td className={`py-2 px-3 text-right font-bold ${log.pnl > 0 ? 'text-green-500' : log.pnl < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                        {log.pnl ? formatCurrency(log.pnl) : '---'}
+                                    </td>
+                                    <td className="py-2 px-3 text-xs text-gray-400">{log.notes}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+        </div>
+    );
 };
 
 // --- AUTH PAGE & ZERODHA SETUP ---
