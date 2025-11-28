@@ -22,7 +22,7 @@ export default function PaperTerminal() {
       const syms = state.watchlist || [];
       if (!syms.length) return;
       try {
-        const r = await fetch(`https://algotrading-2sbm.onrender.com/api/quotes?s=${syms.join(',')}`);
+        const r = await fetch(`/api/quotes?s=${syms.join(',')}`);
         const j = await r.json();
         if (!mounted) return;
         setQuotes(j.quotes || {});

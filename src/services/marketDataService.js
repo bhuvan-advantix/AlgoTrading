@@ -1,5 +1,5 @@
 class MarketDataService {
-  static API_BASE = "https://algotrading-2sbm.onrender.com/api";
+  static API_BASE = 'http://localhost:8081/api';
 
   /* -----------------------------------------
      1) GET HISTORICAL DATA (from backend only)

@@ -30,41 +30,13 @@ const XIcon = (props) => (
 // -----------------------------------------------------
 
 // --- API Configuration ---
+// --- API Configuration ---
 const FINNHUB_API_KEY = "d3o7cd1r01qmj8304e7gd3o7cd1r01qmj8304e80";
-const GEMINI_API_KEY = "AIzaSyA6R7xrh6YIzlFRbn5TYL_KfwbD1w2oAPY"; // Specific Gemini Key
 
 // Finnhub (for news data)
 const FINNHUB_NEWS_URL = () => {
     // Finnhub General News (Market News) endpoint. Limited to the latest 50 articles.
     return `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_API_KEY}`;
-};
-
-// Gemini (for AI analysis)
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
-
-// --- AI Analysis Structure Definition ---
-const AI_RESPONSE_SCHEMA = {
-    type: "OBJECT",
-    properties: {
-        marketSentiment: {
-            type: "STRING",
-            description: "Overall market sentiment: Bullish, Bearish, or Neutral. Must be one of these three words."
-        },
-        keyFactors: {
-            type: "ARRAY",
-            description: "The top 5 most important economic or corporate factors influencing the market based on the news.",
-            items: { type: "STRING" }
-        },
-        recommendation: {
-            type: "STRING",
-            description: "A professional, concise, and actionable trading recommendation based on the sentiment and factors."
-        },
-        confidenceScore: {
-            type: "NUMBER",
-            description: "A score from 0.0 to 1.0 indicating the AI's confidence in its analysis, with 1.0 being highest."
-        }
-    },
-    propertyOrdering: ["marketSentiment", "keyFactors", "recommendation", "confidenceScore"]
 };
 
 // --- Helper for fetching (with exponential backoff) ---
@@ -133,48 +105,31 @@ const NewsAnalysisPage = () => {
     }, [rawNews, searchQuery]);
 
 
-    // --- 1. Generate AI Analysis using Gemini (uses provided API_KEY) ---
+    // --- 1. Generate AI Analysis using Backend Endpoint ---
     const generateAIAnalysis = useCallback(async (newsData) => {
         setIsAILoading(true);
         try {
-            const analysisData = newsData.slice(0, 10);
+            const analysisData = newsData.slice(0, 15);
             if (analysisData.length === 0) {
                 setAiAnalysis(prev => ({ ...prev, marketSentiment: "No Data", recommendation: "No news available for analysis." }));
                 return;
             }
 
-            // Construct a prompt with the headlines and summaries of the top 10 articles
-            const newsContext = analysisData.map(item =>
-                `[${new Date(item.timestamp * 1000).toLocaleTimeString()}] ${item.headline}: ${item.summary}`
-            ).join('\n\n');
-
-            const systemPrompt = `You are a world-class Quantitative Financial Analyst. Analyze the following latest market news and provide a structured, professional, and actionable analysis. Focus on real economic drivers and market impact. The response must be professional and use formal financial language.`;
-
-            const userQuery = `Analyze the following news items and provide the output strictly in the requested JSON schema. The analysis must be based ONLY on the provided text, focusing on the overall sentiment, key drivers, and a professional recommendation.\n\nNEWS CONTEXT:\n${newsContext}`;
-
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: AI_RESPONSE_SCHEMA
-                }
-            };
-
-            const response = await fetchWithRetry(GEMINI_API_URL + GEMINI_API_KEY, {
+            // Call the backend endpoint instead of Gemini directly
+            // Using environment variable for API URL to support both local and production
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+            const response = await fetchWithRetry(`${apiUrl}/api/ai/news-analysis`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ news: analysisData })
             });
 
             const result = await response.json();
-            const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
-            if (jsonText) {
-                const analysisResult = JSON.parse(jsonText);
-                setAiAnalysis(analysisResult);
+            if (result && result.marketSentiment) {
+                setAiAnalysis(result);
             } else {
-                throw new Error('Gemini failed to generate structured response.');
+                throw new Error('Invalid response structure from server.');
             }
 
         } catch (error) {
@@ -182,8 +137,8 @@ const NewsAnalysisPage = () => {
             setAiAnalysis(prev => ({
                 ...prev,
                 marketSentiment: "Analysis Error",
-                keyFactors: ["LLM Processing Failure"],
-                recommendation: "The AI model encountered a processing error. Check console for details."
+                keyFactors: ["Server Connection Failure"],
+                recommendation: "The AI analysis service is currently unavailable. Please check backend connection."
             }));
         } finally {
             setIsAILoading(false);

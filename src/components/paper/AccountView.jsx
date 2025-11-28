@@ -569,7 +569,7 @@ export default function AccountView() {
                 <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
                   <div className="text-xs text-gray-500 uppercase tracking-wide">Account Equity</div>
                   <div className="text-2xl font-bold text-white mt-2">
-                    {formatCurrency(kiteAccount.equity ?? kiteAccount.net_asset_value ?? 0)}
+                    {formatCurrency(kiteAccount.margins?.equity?.net ?? 0)}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">Live Balance</div>
                 </div>
@@ -577,7 +577,7 @@ export default function AccountView() {
                 <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
                   <div className="text-xs text-gray-500 uppercase tracking-wide">Available Cash</div>
                   <div className="text-2xl font-bold text-emerald-400 mt-2">
-                    {formatCurrency(kiteAccount.cash ?? kiteAccount.available_cash ?? 0)}
+                    {formatCurrency(kiteAccount.margins?.equity?.available?.cash ?? 0)}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">For Trading</div>
                 </div>
@@ -598,26 +598,26 @@ export default function AccountView() {
               </div>
 
               {/* Margins Detail */}
-              {kiteAccount.margins && (
+              {kiteAccount.margins && kiteAccount.margins.equity && (
                 <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
-                  <h3 className="text-sm font-semibold text-gray-300 mb-4">Margin & Leverage</h3>
+                  <h3 className="text-sm font-semibold text-gray-300 mb-4">Margin & Leverage (Equity)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <div className="text-xs text-gray-400">Equity</div>
+                      <div className="text-xs text-gray-400">Net Equity</div>
                       <div className="text-xl font-bold text-white mt-1">
-                        {formatCurrency((typeof kiteAccount.margins === 'number') ? kiteAccount.margins : (kiteAccount.margins.equity || 0))}
+                        {formatCurrency(kiteAccount.margins.equity.net ?? 0)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-gray-400">Available Balance</div>
+                      <div className="text-xs text-gray-400">Available Cash</div>
                       <div className="text-xl font-bold text-emerald-400 mt-1">
-                        {formatCurrency(kiteAccount.margins.available || kiteAccount.margins.available_balance || 0)}
+                        {formatCurrency(kiteAccount.margins.equity.available?.cash ?? 0)}
                       </div>
                     </div>
                     <div>
                       <div className="text-xs text-gray-400">Used Margin</div>
                       <div className="text-xl font-bold text-orange-400 mt-1">
-                        {formatCurrency(kiteAccount.margins.utilised || kiteAccount.margins.used || 0)}
+                        {formatCurrency(kiteAccount.margins.equity.utilised?.debits ?? 0)}
                       </div>
                     </div>
                   </div>
@@ -628,7 +628,7 @@ export default function AccountView() {
               {kiteAccount.profile && (
                 <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
                   <h3 className="text-sm font-semibold text-gray-300 mb-4">Account Info</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <div className="text-xs text-gray-400">Account Holder</div>
                       <div className="text-lg font-semibold text-white mt-1">
@@ -638,6 +638,18 @@ export default function AccountView() {
                     <div>
                       <div className="text-xs text-gray-400">User ID</div>
                       <div className="text-lg font-mono text-gray-300 mt-1">{kiteAccount.profile.user_id || '—'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Email</div>
+                      <div className="text-lg font-semibold text-white mt-1">
+                        {kiteAccount.profile.email || '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Broker</div>
+                      <div className="text-lg font-semibold text-white mt-1">
+                        {kiteAccount.profile.broker || 'Zerodha'}
+                      </div>
                     </div>
                   </div>
                 </div>

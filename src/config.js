@@ -3,10 +3,10 @@ export const ZERODHA_API_KEY = "73k6zq3vc6hr7ver"; // Placeholder for frontend c
 export const FINNHUB_API_KEY = "d3o7cd1r01qmj8304e7gd3o7cd1r01qmj8304e80"; // Replace with your actual Finnhub API key
 export const TWELVEDATA_API_KEY = "293f5d774ee04a54ac65869553752fd4"; // Replace with your actual TwelveData API key
 
-// Base API URL - Production Backend
-export const API_BASE = "https://algotrading-2sbm.onrender.com/api";
+// Base API URL assumes the backend is running on port 5000
+export const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 // Market data proxy (search/quote/chart)
-export const MARKET_API_BASE = "https://algotrading-2sbm.onrender.com/api";
+export const MARKET_API_BASE = import.meta.env.VITE_MARKET_API_BASE || '/market-api';
 
 // App configuration
 export const APP_CONFIG = {

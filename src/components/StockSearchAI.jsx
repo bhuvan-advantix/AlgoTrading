@@ -63,7 +63,21 @@ export default function StockSearchAI() {
       const text = await res.text().catch(() => '');
       throw new Error(`Server returned ${res.status}: ${res.statusText} ${text ? `- ${text}` : ''}`);
     }
-    const json = await res.json();
+
+    // Get the response text first to handle empty responses
+    const text = await res.text();
+    if (!text || text.trim() === '') {
+      throw new Error('Empty response from webhook. Please check your n8n workflow configuration.');
+    }
+
+    // Try to parse JSON
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Invalid JSON response: ${text.substring(0, 100)}...`);
+    }
+
     // If backend returned a structured `content` object, normalize it for the frontend
     if (json && json.content) {
       return json;
@@ -122,7 +136,7 @@ export default function StockSearchAI() {
       setData(root);
     } catch (err) {
       console.error('Search error:', err);
-      setError(`${err.message}. Make sure backend (port 5000) and n8n (port 5678) are running.`);
+      setError(`${err.message}. Please check your n8n cloud webhook configuration.`);
     } finally {
       setLoading(false);
     }

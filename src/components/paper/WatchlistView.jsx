@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_BASE = "https://algotrading-2sbm.onrender.com/api";
+const API_BASE = "http://localhost:8081/api";
 
 export default function WatchlistView() {
   const [watchlist, setWatchlist] = useState(() => {

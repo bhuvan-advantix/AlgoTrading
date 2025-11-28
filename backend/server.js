@@ -5,7 +5,25 @@ import cors from 'cors';
 const app = express();
 const PORT = process.env.PORT || 8081;
 
-app.use(cors());
+// CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://advantix-trading.netlify.app',
+  'https://advantix-algotrading.netlify.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for market data service
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Fix for ESM import compatibility: Instantiate the class

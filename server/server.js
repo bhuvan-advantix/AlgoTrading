@@ -30,6 +30,7 @@ const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     'https://advantix-trading.netlify.app',
+    'https://advantix-algotrading.netlify.app',
     process.env.FRONTEND_URL
 ].filter(Boolean);
 

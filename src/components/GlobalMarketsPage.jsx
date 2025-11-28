@@ -88,7 +88,20 @@ async function generateMarketSummary(payload) {
             throw new Error(`API call failed: ${res.status} ${res.statusText}`);
         }
 
-        const json = await res.json();
+        // Get the response text first to handle empty responses
+        const text = await res.text();
+        if (!text || text.trim() === '') {
+            throw new Error('Empty response from n8n webhook. Please check your workflow configuration.');
+        }
+
+        // Try to parse JSON
+        let json;
+        try {
+            json = JSON.parse(text);
+        } catch (parseError) {
+            throw new Error(`Invalid JSON response from webhook: ${text.substring(0, 100)}...`);
+        }
+
         console.log('Full n8n response:', json); // Detailed response logging
 
         // Helper: try to extract a string (markdown) from many possible shapes n8n might return
@@ -134,7 +147,7 @@ async function generateMarketSummary(payload) {
         }
         return { fullReport: markdown };
     } catch (e) {
-        console.error('Gemini API error:', e);
+        console.error('n8n webhook error:', e);
         throw new Error(`AI summary generation failed: ${e.message}`);
     }
 }

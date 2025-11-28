@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { AlertTriangle, Calendar, Globe, TrendingUp, Loader, Zap, Clock, DollarSign } from 'lucide-react';
 
 // --- Operational Constants ---
-const API_ENDPOINT = "http://localhost:5000/event-awareness";
+const API_ENDPOINT = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/event-awareness`;
 const MAX_RETRIES = 5; // Robustness for a trading system
 const TRADING_WINDOW = {
   start: "09:15:00",
@@ -140,8 +140,8 @@ function EventAwareness() {
             </div>
           </div>
           <div className={`px-3 py-1 rounded-full text-sm font-medium ${marketState.tradingWindowActive
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
             }`}>
             {marketState.tradingWindowActive ? 'ACTIVE' : 'CLOSED'}
           </div>
@@ -192,8 +192,8 @@ function EventAwareness() {
                   {marketState.events.map((event, i) => (
                     <div key={i} className="flex items-start space-x-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                       <div className={`w-2 h-2 mt-2 rounded-full ${event.severity === 'high' ? 'bg-red-500' :
-                          event.severity === 'medium' ? 'bg-yellow-500' :
-                            'bg-blue-500'
+                        event.severity === 'medium' ? 'bg-yellow-500' :
+                          'bg-blue-500'
                         }`} />
                       <div>
                         <h4 className="font-medium text-gray-900 dark:text-gray-100">{event.type}</h4>
@@ -239,8 +239,8 @@ function EventAwareness() {
                           </td>
                           <td className="px-4 py-2">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${event.impact === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                event.impact === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                  'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                              event.impact === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                               }`}>
                               {event.impact.toUpperCase()}
                             </span>
