@@ -27,7 +27,11 @@ const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || 'd3o7cd1r01qmj8304e7gd3o7
 
 // CORS configuration
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://advantix-trading.netlify.app',
+    origin: [
+        process.env.FRONTEND_URL || 'https://advantix-trading.netlify.app',
+        'http://localhost:5173',
+        'http://localhost:5174'
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'x-user-id', 'Authorization']

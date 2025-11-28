@@ -1,6 +1,6 @@
-// StockSearchAI.jsx
 import React, { useState } from 'react';
 import { ZapIcon } from 'lucide-react';
+import { MARKET_API_BASE } from '../config';
 
 const Card = ({ title, children, className = '', titleIcon: TitleIcon }) => (
   <div className={`bg-gray-800 rounded-xl p-5 shadow-lg border border-gray-700 ${className}`}>
@@ -53,22 +53,38 @@ export default function StockSearchAI() {
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'json'
 
   // Backend proxy endpoints (backend must be running on port 5000)
-  // Hosted n8n endpoints
-  const LOCAL_URL = 'https://bhuvan21.app.n8n.cloud/webhook/stock-advice';
-  const GLOBAL_URL = 'https://bhuvan21.app.n8n.cloud/webhook/globalstock-advice';
+  // Backend proxy endpoints
+  const LOCAL_URL = `${MARKET_API_BASE}/ai/local`;
+  const GLOBAL_URL = `${MARKET_API_BASE}/ai/global`;
 
-  async function fetchAnalysis(url) {
-    const res = await fetch(url, { method: 'GET' });
+  async function fetchAnalysis(url, symbol) {
+    // The proxy endpoints expect a POST request with the body that N8N expects
+    // N8N likely expects { symbol: "..." } or similar in the body
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol, query: symbol }) // Sending both to be safe
+    });
+
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       throw new Error(`Server returned ${res.status}: ${res.statusText} ${text ? `- ${text}` : ''}`);
     }
-    const json = await res.json();
-    // If backend returned a structured `content` object, normalize it for the frontend
-    if (json && json.content) {
+
+    const text = await res.text();
+    if (!text) return {}; // Handle empty response
+
+    try {
+      const json = JSON.parse(text);
+      // If backend returned a structured `content` object, normalize it for the frontend
+      if (json && json.content) {
+        return json;
+      }
       return json;
+    } catch (e) {
+      console.warn('Response was not JSON:', text.slice(0, 100));
+      throw new Error('Received invalid JSON from server');
     }
-    return json;
   }
 
   async function handleSearch(type) {
@@ -81,8 +97,8 @@ export default function StockSearchAI() {
     setData(null);
 
     try {
-      const url = type === 'local' ? `${LOCAL_URL}?symbol=${encodeURIComponent(query)}` : `${GLOBAL_URL}?symbol=${encodeURIComponent(query)}`;
-      const json = await fetchAnalysis(url);
+      const url = type === 'local' ? LOCAL_URL : GLOBAL_URL;
+      const json = await fetchAnalysis(url, query);
 
       // Handle array response from n8n (it often returns an array of items)
       let root = Array.isArray(json) ? json[0] : json;

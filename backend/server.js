@@ -1,21 +1,6 @@
 import express from 'express';
 import yahooFinance from 'yahoo-finance2';
 import cors from 'cors';
-import axios from 'axios';
-
-const app = express();
-const PORT = process.env.PORT || 10000;
-
-// CORS configuration for Netlify frontend
-app.use(cors({
-  origin: 'https://advantix-trading.netlify.app',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
-
-app.use(express.json());
-
-// Fix for ESM import compatibility: Instantiate the class
 const YFClass = yahooFinance.default || yahooFinance;
 const yf = new YFClass();
 // Optional: suppress survey notice
