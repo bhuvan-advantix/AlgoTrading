@@ -15,7 +15,8 @@ const router = express.Router();
 console.log('[aiAnalysis] Router initialized');
 
 // Initialize Gemini (guard if key missing)
-const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+// Initialize Gemini (guard if key missing)
+const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDDmsSvwFfqN36Cz4vvw_uOwOzvYOKnXis';
 let genAI = null;
 if (GEMINI_KEY) {
   genAI = new GoogleGenerativeAI(GEMINI_KEY);
@@ -116,6 +117,68 @@ Return as plain text. If no action, say "no action".
   } catch (error) {
     console.error('AI Analysis error:', error);
     res.status(500).json({ error: 'AI Analysis failed', details: error.message });
+  }
+});
+
+// POST /api/ai/news-analysis (Structured JSON for NewsAnalysisPage)
+router.post('/news-analysis', async (req, res) => {
+  try {
+    const { news = [] } = req.body;
+    if (!genAI) throw new Error('Gemini not initialized');
+
+    // Limit to top 15 items to fit context
+    const analysisData = news.slice(0, 15);
+    if (analysisData.length === 0) {
+      return res.json({
+        marketSentiment: "No Data",
+        keyFactors: [],
+        recommendation: "No news available for analysis.",
+        confidenceScore: 0
+      });
+    }
+
+    const newsContext = analysisData.map(item =>
+      `[${new Date((item.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString()}] ${item.headline}: ${item.summary}`
+    ).join('\n\n');
+
+    const systemPrompt = `You are a world-class Quantitative Financial Analyst. Analyze the following latest market news and provide a structured, professional, and actionable analysis. Focus on real economic drivers and market impact. The response must be professional and use formal financial language.`;
+
+    const userQuery = `Analyze the following news items and provide the output strictly in the requested JSON schema. The analysis must be based ONLY on the provided text, focusing on the overall sentiment, key drivers, and a professional recommendation.\n\nNEWS CONTEXT:\n${newsContext}`;
+
+    const schema = {
+      type: "OBJECT",
+      properties: {
+        marketSentiment: { type: "STRING", description: "Bullish, Bearish, or Neutral" },
+        keyFactors: { type: "ARRAY", items: { type: "STRING" } },
+        recommendation: { type: "STRING" },
+        confidenceScore: { type: "NUMBER" }
+      },
+      required: ["marketSentiment", "keyFactors", "recommendation", "confidenceScore"]
+    };
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash", // Use a stable model
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
+    });
+
+    const result = await model.generateContent([systemPrompt, userQuery]);
+    const text = result.response.text();
+    const json = JSON.parse(text);
+
+    res.json(json);
+
+  } catch (error) {
+    console.error('News Analysis Error:', error);
+    res.status(500).json({
+      marketSentiment: "Analysis Error",
+      keyFactors: ["Server Processing Failure"],
+      recommendation: "The AI model encountered a processing error on the server.",
+      confidenceScore: 0,
+      details: error.message
+    });
   }
 });
 
