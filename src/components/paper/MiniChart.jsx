@@ -10,8 +10,9 @@ export default function MiniChart({ symbol }) {
     let mounted = true;
     async function load() {
       try {
-        // Update API URL to include port 8081
-        const r = await fetch(`http://localhost:8081/api/chart/${encodeURIComponent(symbol)}?range=5d&interval=15m`);
+        // Update API URL to use environment variable
+        const apiBase = import.meta.env.VITE_MARKET_API_URL || 'http://localhost:8081/api';
+        const r = await fetch(`${apiBase}/chart/${encodeURIComponent(symbol)}?range=5d&interval=15m`);
         if (!r.ok) throw new Error('Failed to fetch chart data');
 
         const j = await r.json();

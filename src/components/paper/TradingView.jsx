@@ -261,7 +261,8 @@ export default function TradingViewProfessional() {
       // backend search (may be slow) - merge results, prefer backend
       let backend = [];
       try {
-        const res = await fetch(`http://localhost:8081/api/search?query=${encodeURIComponent(q)}`);
+        const apiBase = import.meta.env.VITE_MARKET_API_URL || 'http://localhost:8081/api';
+        const res = await fetch(`${apiBase}/search?query=${encodeURIComponent(q)}`);
         const data = await res.json();
         if (Array.isArray(data.results)) backend = data.results;
       } catch {

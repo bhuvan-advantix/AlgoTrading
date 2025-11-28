@@ -1,5 +1,5 @@
 class MarketDataService {
-  static API_BASE = 'http://localhost:8081/api';
+  static API_BASE = import.meta.env.VITE_MARKET_API_URL || 'http://localhost:8081/api';
 
   /* -----------------------------------------
      1) GET HISTORICAL DATA (from backend only)
