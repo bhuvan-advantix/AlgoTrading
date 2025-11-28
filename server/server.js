@@ -147,16 +147,24 @@ app.get("/api/kite/login", async (req, res) => {
 
         const user = await User.findOne({ userId });
 
-        if (!user || !user.kiteApiKey) {
-            return res.status(400).json({ success: false, error: "User has not added Zerodha API keys." });
+        const apiKey = user?.kiteApiKey || process.env.KITE_API_KEY;
+        const apiSecret = user?.kiteApiSecret || process.env.KITE_API_SECRET;
+
+        if (!apiKey || !apiSecret) {
+            return res.status(500).json({ success: false, error: "Kite API keys missing." });
         }
 
-        const kite = new KiteConnect({ api_key: user.kiteApiKey });
+        const kite = new KiteConnect({ api_key: apiKey });
         const loginUrl = kite.getLoginURL();
+
         res.json({ success: true, data: { loginUrl } });
+
     } catch (error) {
-        console.error('Kite Login Error:', error);
-        res.status(500).json({ success: false, error: 'Could not generate Zerodha login URL.' });
+        console.error("Kite Login Error:", error);
+        res.status(500).json({
+            success: false,
+            error: "Could not generate Zerodha login URL."
+        });
     }
 });
 
