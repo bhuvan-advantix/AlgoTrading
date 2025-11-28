@@ -1,0 +1,25 @@
+name: "Feature Spec"
+description: "Define a new feature or module"
+labels: ["type:feature"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: "Feature Title"
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Summary"
+      description: "Describe the feature and expected outcome."
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area"
+      options:
+        - n8n
+        - niraiva
+        - pulse915
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "Acceptance Criteria"

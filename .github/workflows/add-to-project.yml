@@ -1,0 +1,45 @@
+name: Add Issues to Project Boards
+
+on:
+  issues:
+    types: [opened, reopened, labeled]
+
+jobs:
+  add_to_project:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      organization-projects: write
+
+    steps:
+      - name: Wait for label assignment
+        run: sleep 6
+
+      - name: Re-fetch issue data
+        id: issue
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_GH_TOKEN }}
+
+      - name: Add issue to n8n Automations Project
+        if: contains(fromJson(steps.issue.outputs.data).labels.*.name, 'area:n8n')
+        uses: actions/add-to-project@v1.0.1
+        with:
+          project-url: https://github.com/orgs/AdvantixAGI-Tech/projects/3
+          github-token: ${{ secrets.PERSONAL_GH_TOKEN }}
+
+      - name: Add issue to Niraiva Project
+        if: contains(fromJson(steps.issue.outputs.data).labels.*.name, 'area:niraiva')
+        uses: actions/add-to-project@v1.0.1
+        with:
+          project-url: https://github.com/orgs/AdvantixAGI-Tech/projects/1
+          github-token: ${{ secrets.PERSONAL_GH_TOKEN }}
+
+      - name: Add issue to Pulse915 Project
+        if: contains(fromJson(steps.issue.outputs.data).labels.*.name, 'area:pulse915')
+        uses: actions/add-to-project@v1.0.1
+        with:
+          project-url: https://github.com/orgs/AdvantixAGI-Tech/projects/5
+          github-token: ${{ secrets.PERSONAL_GH_TOKEN }}

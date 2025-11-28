@@ -1,0 +1,81 @@
+@import "tailwindcss";  
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Minimal, non-invasive global styles */
+:root { color-scheme: light dark; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #0f172a;
+  color: #e5e7eb;
+}
+
+/* Clerk auth theme overrides - make text clear, centered headings and neutral inputs */
+.clerk-theme {
+  color: #ffffff;
+}
+.clerk-theme .cl-card__title,
+.clerk-theme .cl-card__subtitle,
+.clerk-theme .cl-header,
+.clerk-theme .cl-footer,
+.clerk-theme .cl-divider__text {
+  color: #ffffff !important;
+  text-align: center !important;
+}
+.clerk-theme input,
+.clerk-theme .cl-input,
+.clerk-theme .cl-form__field {
+  background: #071024 !important;
+  color: #e6eef6 !important;
+  border-color: #1f2937 !important;
+}
+.clerk-theme .cl-button,
+.clerk-theme button {
+  text-align: center !important;
+}
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.45em 0.9em;
+  font-size: 0.95em;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.25s, background-color 0.15s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  /* Let Tailwind utility classes control button backgrounds in light mode */
+}

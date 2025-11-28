@@ -1,0 +1,77 @@
+name: Create Issues from SpecKit
+
+on:
+  workflow_dispatch:      # Manual trigger
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/specs/**/*.md"
+      - "docs/tasks/**/*.md"
+
+jobs:
+  create_issues:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # ensure HEAD~1 exists
+
+      - name: Detect new or updated spec/task files
+        id: detect
+        run: |
+          echo "🔍 Detecting spec and task files..."
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            files=$(git diff --name-only HEAD~1 HEAD | grep -E 'docs/(specs|tasks)/.*\.md' || true)
+          else
+            files=$(git ls-files docs/specs/**/*.md docs/tasks/**/*.md 2>/dev/null || true)
+          fi
+          echo "Detected files:"
+          echo "$files"
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$files" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create issues from markdown files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 Scanning for SpecKit files to create issues..."
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            changed_files=$(git diff --name-only HEAD~1 HEAD | grep -E 'docs/(specs|tasks)/.*\.md' || true)
+          else
+            changed_files=$(git ls-files docs/specs/**/*.md docs/tasks/**/*.md 2>/dev/null || true)
+          fi
+
+          if [ -z "$changed_files" ]; then
+            echo "No SpecKit files found — skipping issue creation."
+            exit 0
+          fi
+
+          for file in $changed_files; do
+            title=$(basename "$file" .md | sed 's/-/ /g' | sed 's/^/SpecKit: /')
+
+            # detect the project area by folder
+            if [[ "$file" == *"/n8n/"* ]]; then
+              area_label="area:n8n"
+            elif [[ "$file" == *"/niraiva/"* ]]; then
+              area_label="area:niraiva"
+            elif [[ "$file" == *"/pulse915/"* ]]; then
+              area_label="area:pulse915"
+            else
+              area_label="area:unassigned"
+            fi
+
+            echo "📝 Creating issue for $file with label $area_label"
+            gh issue create \
+              --title "$title" \
+              --body-file "$file" \
+              --label "feature" \
+              --label "$area_label" || echo "⚠️ Failed to create issue for $file"
+          done
