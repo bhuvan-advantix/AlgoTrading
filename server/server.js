@@ -62,10 +62,12 @@ mongoose.connect(mongoDbUri, {
 // --- Schemas & Models ---
 const UserSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },  // For Zerodha user ID
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    email: { type: String }, // Made optional
+    password: { type: String }, // Made optional
     name: String,
     zerodhaConnected: { type: Boolean, default: false },
+    kiteApiKey: String,
+    kiteApiSecret: String,
     kiteAccessToken: String,
     userName: String,
     createdAt: { type: Date, default: Date.now }
@@ -100,15 +102,15 @@ import { Trade } from './models/trade.js';
 import { AuditLog } from './models/audit.js';
 import { AiPick } from './models/aipick.js';
 
-// Temporary DB clear (remove in production)
-mongoose.connection.once('open', async () => {
-    try {
-        await mongoose.connection.db.dropDatabase();
-        console.log('Database cleared');
-    } catch (err) {
-        console.error('Error clearing database:', err);
-    }
-});
+// Removed temporary DB clear for production stability
+// mongoose.connection.once('open', async () => {
+//     try {
+//         await mongoose.connection.db.dropDatabase();
+//         console.log('Database cleared');
+//     } catch (err) {
+//         console.error('Error clearing database:', err);
+//     }
+// });
 
 // --- Kite helper: create Kite client per-user using the stored access token ---
 function makeKiteClient(accessToken) {
