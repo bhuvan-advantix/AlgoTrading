@@ -139,19 +139,23 @@ const kc = new KiteConnect({ api_key: KITE_API_KEY });
 // --- KITE AUTHENTICATION SETUP (login & token exchange) ---
 app.get("/api/kite/login", async (req, res) => {
     try {
-        // ZERODHA UPDATE ADDED HERE: Use user-specific API Key
+        // ZERODHA UPDATE: STRICTLY use user-specific API Key
         const userId = req.query.userId || req.headers['x-user-id'];
-        let apiKey = KITE_API_KEY; // Fallback to env var
 
-        if (userId) {
-            const user = await User.findOne({ userId });
-            if (user && user.kiteApiKey) {
-                apiKey = user.kiteApiKey;
-            }
+        if (!userId) {
+            return res.status(400).json({ success: false, error: "User ID is required to login to Zerodha." });
         }
 
+        const user = await User.findOne({ userId });
+        if (!user || !user.kiteApiKey) {
+            return res.status(400).json({ success: false, error: "Zerodha API Key not found for this user. Please configure it in settings." });
+        }
+
+        const apiKey = user.kiteApiKey;
         const kite = new KiteConnect({ api_key: apiKey });
         const loginUrl = kite.getLoginURL();
+
+        console.log(`Generated Zerodha login URL for user ${userId} with key ${apiKey}`);
         res.json({ success: true, data: { loginUrl } });
     } catch (error) {
         console.error('Kite Login Error:', error);

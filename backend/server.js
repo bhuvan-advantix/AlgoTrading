@@ -1,6 +1,7 @@
 import express from 'express';
 import yahooFinance from 'yahoo-finance2';
 import cors from 'cors';
+import axios from 'axios';
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -105,6 +106,73 @@ app.get('/api/search', async (req, res) => {
   } catch (err) {
     console.error('Yahoo Search error:', err);
     res.json({ results: [] });
+  }
+});
+
+// Search endpoint alias (for frontend compatibility)
+app.get('/api/search-stocks', async (req, res) => {
+  const { query } = req.query;
+  if (!query) return res.json({ results: [] });
+
+  try {
+    console.log(`Searching (alias) for: ${query}`);
+    const result = await yf.search(query);
+    const quotes = result.quotes.filter(q => q.isYahooFinance).map(q => ({
+      symbol: q.symbol,
+      name: q.shortname || q.longname,
+      type: q.quoteType,
+      exchange: q.exchange,
+      currency: 'USD'
+    }));
+    res.json({ results: quotes });
+  } catch (err) {
+    console.error('Yahoo Search (alias) error:', err);
+    res.json({ results: [] });
+  }
+});
+
+// --- AI Routes (N8N Proxies) ---
+
+// Helper to safely parse N8N response
+const safeParseN8N = (data) => {
+  if (typeof data === 'object') return data;
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    return { text: String(data) }; // Fallback for plain text
+  }
+};
+
+app.post('/api/ai/local', async (req, res) => {
+  try {
+    console.log('Calling Local AI...');
+    const response = await axios.post('https://bhuvan21.app.n8n.cloud/webhook/stock-advice', req.body);
+    res.json(safeParseN8N(response.data));
+  } catch (error) {
+    console.error("AI Local Error:", error.message);
+    res.json({ error: "Failed to fetch AI response", details: error.message });
+  }
+});
+
+app.post('/api/ai/global', async (req, res) => {
+  try {
+    console.log('Calling Global AI...');
+    const response = await axios.post('https://bhuvan21.app.n8n.cloud/webhook/globalstock-advice', req.body);
+    res.json(safeParseN8N(response.data));
+  } catch (error) {
+    console.error("AI Global Error:", error.message);
+    res.json({ error: "Failed to fetch Global AI response", details: error.message });
+  }
+});
+
+app.get('/api/ai/summary', async (req, res) => {
+  try {
+    console.log('Calling AI Summary...');
+    const response = await axios.get('https://bhuvan21.app.n8n.cloud/webhook/b765c25e-1f8c-4aac-b65a-53523229ce8e');
+    res.json(safeParseN8N(response.data));
+  } catch (error) {
+    console.error("AI Summary Error:", error.message);
+    res.json({ error: "Failed to fetch AI summary", details: error.message });
   }
 });
 
