@@ -20,18 +20,14 @@ const app = express();
 // --- ENVIRONMENT VARIABLES (Assumed to be loaded from .env) ---
 const KITE_API_KEY = process.env.KITE_API_KEY || '73k6zq3vc6hr7ver';
 const KITE_API_SECRET = process.env.KITE_API_SECRET || 'h7oqtuehtvkil8s6fdursq6tvto7iz60';
-const KITE_REDIRECT_URI = process.env.KITE_REDIRECT_URI || 'https://advantix-trading.netlify.app/redirect';
+const KITE_REDIRECT_URI = process.env.KITE_REDIRECT_URI || 'https://advantix-trading.netlify.app';
 const TWELVEDATA_API_KEY = process.env.TWELVEDATA_API_KEY || '293f5d774ee04a54ac65869553752fd4';
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || 'd3o7cd1r01qmj8304e7gd3o7cd1r01qmj8304e80';
 // --- END ENV VARS ---
 
 // CORS configuration
 app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL || 'https://advantix-trading.netlify.app',
-        'http://localhost:5173',
-        'http://localhost:5174'
-    ],
+    origin: process.env.FRONTEND_URL || 'https://advantix-trading.netlify.app',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'x-user-id', 'Authorization']
@@ -66,11 +62,13 @@ mongoose.connect(mongoDbUri, {
 // --- Schemas & Models ---
 const UserSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },  // For Zerodha user ID
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    email: { type: String },
+    password: { type: String },
     name: String,
     zerodhaConnected: { type: Boolean, default: false },
     kiteAccessToken: String,
+    kiteApiKey: String,      // Added for per-user API Key
+    kiteApiSecret: String,   // Added for per-user API Secret
     userName: String,
     createdAt: { type: Date, default: Date.now }
 });
@@ -107,8 +105,8 @@ import { AiPick } from './models/aipick.js';
 // Temporary DB clear (remove in production)
 mongoose.connection.once('open', async () => {
     try {
-        await mongoose.connection.db.dropDatabase();
-        console.log('Database cleared');
+        // await mongoose.connection.db.dropDatabase(); // Commented out to prevent data loss during testing
+        // console.log('Database cleared');
     } catch (err) {
         console.error('Error clearing database:', err);
     }
@@ -143,23 +141,24 @@ const kc = new KiteConnect({ api_key: KITE_API_KEY });
 // --- KITE AUTHENTICATION SETUP (login & token exchange) ---
 app.get("/api/kite/login", async (req, res) => {
     try {
-        // ZERODHA UPDATE: STRICTLY use user-specific API Key
         const userId = req.query.userId || req.headers['x-user-id'];
 
         if (!userId) {
-            return res.status(400).json({ success: false, error: "User ID is required to login to Zerodha." });
+            return res.status(400).json({ success: false, error: "User ID is required." });
         }
 
         const user = await User.findOne({ userId });
-        if (!user || !user.kiteApiKey) {
-            return res.status(400).json({ success: false, error: "Zerodha API Key not found for this user. Please configure it in settings." });
+
+        if (!user) {
+            return res.status(404).json({ success: false, error: "User not found. Please save your keys first." });
         }
 
-        const apiKey = user.kiteApiKey;
-        const kite = new KiteConnect({ api_key: apiKey });
-        const loginUrl = kite.getLoginURL();
+        if (!user.kiteApiKey || !user.kiteApiSecret) {
+            return res.status(400).json({ success: false, error: "User has not added Zerodha API keys (Key and Secret required)." });
+        }
 
-        console.log(`Generated Zerodha login URL for user ${userId} with key ${apiKey}`);
+        const kite = new KiteConnect({ api_key: user.kiteApiKey });
+        const loginUrl = kite.getLoginURL();
         res.json({ success: true, data: { loginUrl } });
     } catch (error) {
         console.error('Kite Login Error:', error);

@@ -9,8 +9,6 @@ import AccountPanel from '../components/paper/AccountPanel';
 import MiniChart from '../components/paper/MiniChart';
 import { motion } from 'framer-motion';
 
-import { MARKET_API_BASE } from '../config';
-
 export default function PaperTerminal() {
   useEffect(() => { init(); setState(getState()); /* eslint-disable-next-line */ }, []);
   const [state, setState] = useState(getState());
@@ -24,7 +22,7 @@ export default function PaperTerminal() {
       const syms = state.watchlist || [];
       if (!syms.length) return;
       try {
-        const r = await fetch(`${MARKET_API_BASE}/quotes?s=${syms.join(',')}`);
+        const r = await fetch(`https://algotrading-2sbm.onrender.com/api/quotes?s=${syms.join(',')}`);
         const j = await r.json();
         if (!mounted) return;
         setQuotes(j.quotes || {});

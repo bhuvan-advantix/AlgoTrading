@@ -3,7 +3,7 @@ import TradingViewWidget from './TradingViewWidget';
 import IndexMini from './IndexMini';
 import { Card } from './Card';
 import { BarChart2Icon, MaximizeIcon } from '../icons/index.jsx';
-import { TWELVEDATA_API_KEY, FINNHUB_API_KEY, MARKET_API_BASE } from '../config';
+import { TWELVEDATA_API_KEY, FINNHUB_API_KEY } from '../config';
 
 // API Keys
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyAtB2ZCy_X5R1MC8LKyrKAg3rqHlFE08Ko';
@@ -58,8 +58,8 @@ async function fetchFinnhubNews(limit = 20) {
 
 async function generateMarketSummary(payload) {
     try {
-        // Using backend proxy for market analysis
-        const endpoint = `${MARKET_API_BASE}/ai/summary`;
+        // Using n8n webhook for market analysis
+        const endpoint = 'https://bhuvan21.app.n8n.cloud/webhook/b765c25e-1f8c-4aac-b65a-53523229ce8e';
 
         console.log('Sending payload to n8n:', {
             marketData: payload.markets,
@@ -70,27 +70,25 @@ async function generateMarketSummary(payload) {
         });
 
         const res = await fetch(endpoint, {
-            method: 'GET',
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                marketData: payload.markets,
+                commodities: payload.commodities,
+                vix: payload.vix,
+                headlines: payload.headlines,
+                volatility: payload.volatility_regime_local,
+                timestamp: payload.timestamp
+            })
         });
 
         if (!res.ok) {
             throw new Error(`API call failed: ${res.status} ${res.statusText}`);
         }
 
-        const text = await res.text();
-        if (!text) return { fullReport: 'No data received from AI service.' };
-
-        let json;
-        try {
-            json = JSON.parse(text);
-        } catch (e) {
-            console.warn('AI Summary response was not JSON:', text.slice(0, 100));
-            // If it's just a string, treat it as the report
-            return { fullReport: text };
-        }
+        const json = await res.json();
         console.log('Full n8n response:', json); // Detailed response logging
 
         // Helper: try to extract a string (markdown) from many possible shapes n8n might return

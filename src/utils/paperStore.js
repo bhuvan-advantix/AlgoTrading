@@ -1,5 +1,3 @@
-import { MARKET_API_BASE } from '../config';
-
 // src/utils/paperStore.js
 // Lightweight store that persists to localStorage and talks to backend for quotes/charts
 const STORAGE_KEY = 'advantix_paper_v3';
@@ -47,7 +45,7 @@ export function qtyToAmount(qty, price) { return qty * price; }
 export async function placeMarketOrder({ symbol, side, amount, qty }) {
   const st = getState();
   // fetch live price from backend
-  const resp = await fetch(`${MARKET_API_BASE}/quote/${encodeURIComponent(symbol)}`);
+  const resp = await fetch(`https://algotrading-2sbm.onrender.com/api/quote/${encodeURIComponent(symbol)}`);
   const json = await resp.json();
   const marketPrice = json?.price;
   if (!marketPrice) return { success: false, reason: 'price_unavailable' };
@@ -106,7 +104,7 @@ export async function computeEquity(snapshot) {
   // fetch latest prices for positions in parallel (but limited)
   const syms = Object.keys(st.positions);
   if (syms.length) {
-    const q = await fetch(`${MARKET_API_BASE}/quotes?s=${syms.join(',')}`);
+    const q = await fetch(`https://algotrading-2sbm.onrender.com/api/quotes?s=${syms.join(',')}`);
     const j = await q.json();
     const quotes = (j && j.quotes) || {};
     syms.forEach(s => {

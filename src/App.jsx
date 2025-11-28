@@ -25,7 +25,7 @@ import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, limit
 
 // Base API URL assumes the backend is running on port 5000
 // Import configuration
-import { ZERODHA_API_KEY, FINNHUB_API_KEY, TWELVEDATA_API_KEY, API_BASE, MARKET_API_BASE, APP_CONFIG } from './config';
+import { ZERODHA_API_KEY, FINNHUB_API_KEY, TWELVEDATA_API_KEY, API_BASE, APP_CONFIG } from './config';
 
 // --- UTILITIES ---
 
@@ -543,20 +543,23 @@ const DashboardPage = () => {
                 price: orderType === 'LIMIT' ? parseFloat(limitPrice || 0) : undefined,
                 mode // Paper|Live - backend can decide what to do
             };
-
             // Optionally fetch latest market price preview for this symbol (best-effort)
             try {
                 const s = payload.symbol;
-                const qp = await fetch(`${MARKET_API_BASE}/quote/${encodeURIComponent(s)}`);
+                const qp = await fetch(`${API_BASE}/market/quotes?symbol=${encodeURIComponent(s)}`);
                 if (qp.ok) {
                     const qj = await qp.json();
-                    if (qj?.ok && qj.currentPrice) {
-                        payload.price = payload.price || qj.currentPrice;
+                    if (qj?.success && Array.isArray(qj.data) && qj.data.length > 0) {
+                        payload.price = payload.price || qj.data[0].currentPrice || payload.price;
+                    } else if (qj?.success && qj.data?.currentPrice) {
+                        payload.price = payload.price || qj.data.currentPrice;
                     }
                 }
             } catch (err) {
-                // non-fatal
+                // non-fatal — we proceed with existing payload
+                console.debug('Market preview fetch failed', err?.message || err);
             }
+
 
             const response = await fetchWithRetry(`${API_BASE}/trades/execute`, {
                 method: 'POST',
@@ -607,6 +610,10 @@ const DashboardPage = () => {
         } finally {
             setIsPlacingOrder(false);
         }
+    };
+
+    const handleRiskChange = (key, value) => {
+        setRiskParams(prev => ({ ...prev, [key]: value }));
     };
 
     return (

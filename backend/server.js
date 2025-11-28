@@ -1,6 +1,14 @@
 import express from 'express';
 import yahooFinance from 'yahoo-finance2';
 import cors from 'cors';
+
+const app = express();
+const PORT = process.env.PORT || 8081;
+
+app.use(cors());
+app.use(express.json());
+
+// Fix for ESM import compatibility: Instantiate the class
 const YFClass = yahooFinance.default || yahooFinance;
 const yf = new YFClass();
 // Optional: suppress survey notice
@@ -8,7 +16,7 @@ const yf = new YFClass();
 
 // Basic health check
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'Market Data Service', baseUrl: 'https://algotrading-1-v2p7.onrender.com' });
+  res.json({ status: 'ok', service: 'Market Data Service' });
 });
 
 // Real live data endpoint using Yahoo Finance
@@ -92,118 +100,6 @@ app.get('/api/search', async (req, res) => {
     console.error('Yahoo Search error:', err);
     res.json({ results: [] });
   }
-});
-
-// Search endpoint alias (for frontend compatibility)
-app.get('/api/search-stocks', async (req, res) => {
-  const { query } = req.query;
-  if (!query) return res.json({ results: [] });
-
-  try {
-    console.log(`Searching (alias) for: ${query}`);
-    const result = await yf.search(query);
-    const quotes = result.quotes.filter(q => q.isYahooFinance).map(q => ({
-      symbol: q.symbol,
-      name: q.shortname || q.longname,
-      type: q.quoteType,
-      exchange: q.exchange,
-      currency: 'USD'
-    }));
-    res.json({ results: quotes });
-  } catch (err) {
-    console.error('Yahoo Search (alias) error:', err);
-    res.json({ results: [] });
-  }
-});
-
-// --- AI Routes (N8N Proxies) ---
-
-// Helper to safely parse N8N response
-const safeParseN8N = (data) => {
-  if (typeof data === 'object') return data;
-  try {
-    return JSON.parse(data);
-  } catch (e) {
-    return { text: String(data) }; // Fallback for plain text
-  }
-};
-
-app.post('/api/ai/local', async (req, res) => {
-  try {
-    console.log('Calling Local AI...');
-    const response = await axios.post('https://bhuvan21.app.n8n.cloud/webhook/stock-advice', req.body);
-    res.json(safeParseN8N(response.data));
-  } catch (error) {
-    console.error("AI Local Error:", error.message);
-    res.json({ error: "Failed to fetch AI response", details: error.message });
-  }
-});
-
-app.post('/api/ai/global', async (req, res) => {
-  try {
-    console.log('Calling Global AI...');
-    const response = await axios.post('https://bhuvan21.app.n8n.cloud/webhook/globalstock-advice', req.body);
-    res.json(safeParseN8N(response.data));
-  } catch (error) {
-    console.error("AI Global Error:", error.message);
-    res.json({ error: "Failed to fetch Global AI response", details: error.message });
-  }
-});
-
-app.get('/api/ai/summary', async (req, res) => {
-  try {
-    console.log('Calling AI Summary...');
-    const response = await axios.get('https://bhuvan21.app.n8n.cloud/webhook/b765c25e-1f8c-4aac-b65a-53523229ce8e');
-    res.json(safeParseN8N(response.data));
-  } catch (error) {
-    console.error("AI Summary Error:", error.message);
-    res.json({ error: "Failed to fetch AI summary", details: error.message });
-  }
-});
-
-// News Analysis Proxy (Gemini)
-app.post('/api/ai/news-analysis', async (req, res) => {
-  try {
-    console.log('Calling News Analysis AI (Gemini)...');
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyA6R7xrh6YIzlFRbn5TYL_KfwbD1w2oAPY";
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
-
-    const response = await axios.post(GEMINI_URL, req.body);
-    // Gemini returns a complex object, we just pass it back safely
-    res.json(response.data);
-  } catch (error) {
-    console.error("AI News Analysis Error:", error.message);
-    // Return a valid JSON error structure that the frontend can handle gracefully
-    res.json({
-      error: "Failed to analyze news",
-      details: error.message,
-      candidates: [{
-        content: {
-          parts: [{
-            text: JSON.stringify({
-              marketSentiment: "Analysis Error",
-              keyFactors: ["Backend Proxy Failure"],
-              recommendation: "Unable to process AI analysis at this time.",
-              confidenceScore: 0
-            })
-          }]
-        }
-      }]
-    });
-  }
-});
-
-// Mock Event Awareness Endpoint
-app.get('/api/event-awareness', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      regime: "Normal",
-      events: [],
-      economicCalendar: [],
-      notes: "Market conditions are normal. No major events detected."
-    }
-  });
 });
 
 app.listen(PORT, () => {

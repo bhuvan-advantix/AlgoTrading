@@ -2,8 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-import { MARKET_API_BASE } from '../../config';
-
 export default function MiniChart({ symbol }) {
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
@@ -13,7 +11,7 @@ export default function MiniChart({ symbol }) {
     async function load() {
       try {
         // Update API URL to include port 8081
-        const r = await fetch(`${MARKET_API_BASE}/chart/${encodeURIComponent(symbol)}?range=5d&interval=15m`);
+        const r = await fetch(`https://algotrading-2sbm.onrender.com/api/chart/${encodeURIComponent(symbol)}?range=5d&interval=15m`);
         if (!r.ok) throw new Error('Failed to fetch chart data');
 
         const j = await r.json();

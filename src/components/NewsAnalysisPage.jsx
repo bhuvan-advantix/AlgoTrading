@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { MARKET_API_BASE } from '../config';
 
 // --- Placeholder Dependencies for Canvas Environment ---
 const Card = ({ title, className = 'bg-gray-800/80', titleIcon: TitleIcon, children }) => (
@@ -32,13 +31,16 @@ const XIcon = (props) => (
 
 // --- API Configuration ---
 const FINNHUB_API_KEY = "d3o7cd1r01qmj8304e7gd3o7cd1r01qmj8304e80";
-// GEMINI_API_KEY is now handled by the backend
+const GEMINI_API_KEY = "AIzaSyA6R7xrh6YIzlFRbn5TYL_KfwbD1w2oAPY"; // Specific Gemini Key
 
 // Finnhub (for news data)
 const FINNHUB_NEWS_URL = () => {
     // Finnhub General News (Market News) endpoint. Limited to the latest 50 articles.
     return `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_API_KEY}`;
 };
+
+// Gemini (for AI analysis)
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
 
 // --- AI Analysis Structure Definition ---
 const AI_RESPONSE_SCHEMA = {
@@ -131,7 +133,7 @@ const NewsAnalysisPage = () => {
     }, [rawNews, searchQuery]);
 
 
-    // --- 1. Generate AI Analysis using Backend Proxy ---
+    // --- 1. Generate AI Analysis using Gemini (uses provided API_KEY) ---
     const generateAIAnalysis = useCallback(async (newsData) => {
         setIsAILoading(true);
         try {
@@ -159,8 +161,7 @@ const NewsAnalysisPage = () => {
                 }
             };
 
-            // Use Backend Proxy
-            const response = await fetchWithRetry(`${MARKET_API_BASE}/ai/news-analysis`, {
+            const response = await fetchWithRetry(GEMINI_API_URL + GEMINI_API_KEY, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -173,7 +174,7 @@ const NewsAnalysisPage = () => {
                 const analysisResult = JSON.parse(jsonText);
                 setAiAnalysis(analysisResult);
             } else {
-                throw new Error('Backend failed to return structured response.');
+                throw new Error('Gemini failed to generate structured response.');
             }
 
         } catch (error) {
@@ -181,7 +182,7 @@ const NewsAnalysisPage = () => {
             setAiAnalysis(prev => ({
                 ...prev,
                 marketSentiment: "Analysis Error",
-                keyFactors: ["Backend Processing Failure"],
+                keyFactors: ["LLM Processing Failure"],
                 recommendation: "The AI model encountered a processing error. Check console for details."
             }));
         } finally {

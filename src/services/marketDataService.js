@@ -1,7 +1,5 @@
-import { MARKET_API_BASE } from '../config';
-
 class MarketDataService {
-  static API_BASE = MARKET_API_BASE;
+  static API_BASE = "https://algotrading-2sbm.onrender.com/api";
 
   /* -----------------------------------------
      1) GET HISTORICAL DATA (from backend only)

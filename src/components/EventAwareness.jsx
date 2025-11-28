@@ -1,10 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { AlertTriangle, Calendar, Globe, TrendingUp, Loader, Zap, Clock, DollarSign } from 'lucide-react';
 
-import { MARKET_API_BASE } from '../config';
-
 // --- Operational Constants ---
-const API_ENDPOINT = `${MARKET_API_BASE}/event-awareness`;
+const API_ENDPOINT = "http://localhost:5000/event-awareness";
 const MAX_RETRIES = 5; // Robustness for a trading system
 const TRADING_WINDOW = {
   start: "09:15:00",
