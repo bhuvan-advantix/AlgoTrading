@@ -62,13 +62,11 @@ mongoose.connect(mongoDbUri, {
 // --- Schemas & Models ---
 const UserSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },  // For Zerodha user ID
-    email: { type: String },
-    password: { type: String },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
     name: String,
     zerodhaConnected: { type: Boolean, default: false },
     kiteAccessToken: String,
-    kiteApiKey: String,      // Added for per-user API Key
-    kiteApiSecret: String,   // Added for per-user API Secret
     userName: String,
     createdAt: { type: Date, default: Date.now }
 });
@@ -105,8 +103,8 @@ import { AiPick } from './models/aipick.js';
 // Temporary DB clear (remove in production)
 mongoose.connection.once('open', async () => {
     try {
-        // await mongoose.connection.db.dropDatabase(); // Commented out to prevent data loss during testing
-        // console.log('Database cleared');
+        await mongoose.connection.db.dropDatabase();
+        console.log('Database cleared');
     } catch (err) {
         console.error('Error clearing database:', err);
     }
@@ -149,12 +147,8 @@ app.get("/api/kite/login", async (req, res) => {
 
         const user = await User.findOne({ userId });
 
-        if (!user) {
-            return res.status(404).json({ success: false, error: "User not found. Please save your keys first." });
-        }
-
-        if (!user.kiteApiKey || !user.kiteApiSecret) {
-            return res.status(400).json({ success: false, error: "User has not added Zerodha API keys (Key and Secret required)." });
+        if (!user || !user.kiteApiKey) {
+            return res.status(400).json({ success: false, error: "User has not added Zerodha API keys." });
         }
 
         const kite = new KiteConnect({ api_key: user.kiteApiKey });

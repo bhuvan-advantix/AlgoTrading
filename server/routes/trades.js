@@ -18,7 +18,7 @@ const globalKite = new KiteConnect({ api_key: KITE_API_KEY });
 const executeTrade = async (order) => {
     // Simulate broker API call delay
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     // 90% success rate for testing
     if (Math.random() > 0.1) {
         return {
@@ -27,7 +27,7 @@ const executeTrade = async (order) => {
             message: 'Order placed successfully'
         };
     }
-    
+
     throw new Error('Order rejected: insufficient funds');
 };
 
@@ -56,65 +56,65 @@ router.post('/trades/execute', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Limit orders require a valid price.' });
         }
 
-                // If the client requested execution on Zerodha and we have a Kite session for the user, attempt real placement
-                    let result;
-                    const kiteHeader = req.headers['x-kite-user-id'];
-                    const incomingUserId = kiteHeader || req.headers['x-user-id'] || null;
+        // If the client requested execution on Zerodha and we have a Kite session for the user, attempt real placement
+        let result;
+        const kiteHeader = req.headers['x-kite-user-id'];
+        const incomingUserId = kiteHeader || req.headers['x-user-id'] || null;
 
-                        if (order.executeOnZerodha && incomingUserId) {
-                try {
+        if (order.executeOnZerodha && incomingUserId) {
+            try {
                 // resolve the User model at runtime (server.js registers it during startup)
                 const User = mongoose.model('User');
                 const user = await User.findOne({ userId: incomingUserId });
-                        if (user && user.kiteAccessToken) {
-                            // Use a KiteConnect instance with the stored access token
-                            globalKite.setAccessToken(user.kiteAccessToken);
+                if (user && user.kiteAccessToken) {
+                    // Use a KiteConnect instance with the stored access token
+                    globalKite.setAccessToken(user.kiteAccessToken);
 
-                                    // Prepare Kite order payload with simple mapping
-                                    const symbolMap = {
-                                        RELIANCE: { exchange: 'NSE', product: 'CNC', tradingsymbol: 'RELIANCE' },
-                                        HDFCBANK: { exchange: 'NSE', product: 'CNC', tradingsymbol: 'HDFCBANK' },
-                                        TCS: { exchange: 'NSE', product: 'CNC', tradingsymbol: 'TCS' }
-                                        // Add more mappings as needed for production
-                                    };
+                    // Prepare Kite order payload with simple mapping
+                    const symbolMap = {
+                        RELIANCE: { exchange: 'NSE', product: 'CNC', tradingsymbol: 'RELIANCE' },
+                        HDFCBANK: { exchange: 'NSE', product: 'CNC', tradingsymbol: 'HDFCBANK' },
+                        TCS: { exchange: 'NSE', product: 'CNC', tradingsymbol: 'TCS' }
+                        // Add more mappings as needed for production
+                    };
 
-                                    const mapped = symbolMap[(order.symbol || '').toUpperCase()] || { exchange: 'NSE', product: order.product || 'CNC', tradingsymbol: order.symbol };
+                    const mapped = symbolMap[(order.symbol || '').toUpperCase()] || { exchange: 'NSE', product: order.product || 'CNC', tradingsymbol: order.symbol };
 
-                                    const kiteOrder = {
-                                        exchange: mapped.exchange,
-                                        tradingsymbol: mapped.tradingsymbol,
-                                        transaction_type: order.type, // 'BUY' or 'SELL'
-                                        quantity: parseInt(order.quantity, 10),
-                                        order_type: (order.orderType || 'MARKET').toUpperCase(),
-                                        product: mapped.product,
-                                    };
+                    const kiteOrder = {
+                        exchange: mapped.exchange,
+                        tradingsymbol: mapped.tradingsymbol,
+                        transaction_type: order.type, // 'BUY' or 'SELL'
+                        quantity: parseInt(order.quantity, 10),
+                        order_type: (order.orderType || 'MARKET').toUpperCase(),
+                        product: mapped.product,
+                    };
 
-                            if (kiteOrder.order_type === 'LIMIT') {
-                                kiteOrder.price = parseFloat(order.price);
-                            }
-
-                            // Call Kite placeOrder (this may throw on failure)
-                            const kiteResponse = await globalKite.placeOrder(kiteOrder);
-                            // Normalize kite response
-                            result = {
-                                success: true,
-                                orderId: kiteResponse.order_id || `KITE_${Date.now()}`,
-                                message: 'Order placed on Zerodha'
-                            };
-                        }
-                    } catch (kiteErr) {
-                        console.error('Kite placement error:', kiteErr?.data || kiteErr?.message || kiteErr);
-                        // Fall back to mock execution below
+                    if (kiteOrder.order_type === 'LIMIT') {
+                        kiteOrder.price = parseFloat(order.price);
                     }
-                }
 
-                // If kite execution was not requested or did not succeed, use mock execution
-                if (!result) {
-                    result = await executeTrade(order);
+                    // Call Kite placeOrder (this may throw on failure)
+                    const kiteResponse = await globalKite.placeOrder(kiteOrder);
+                    // Normalize kite response
+                    result = {
+                        success: true,
+                        orderId: kiteResponse.order_id || `KITE_${Date.now()}`,
+                        message: 'Order placed on Zerodha'
+                    };
                 }
-        
-    // Store the order in database
-    // incomingUserId already captured earlier
+            } catch (kiteErr) {
+                console.error('Kite placement error:', kiteErr?.data || kiteErr?.message || kiteErr);
+                // Fall back to mock execution below
+            }
+        }
+
+        // If kite execution was not requested or did not succeed, use mock execution
+        if (!result) {
+            result = await executeTrade(order);
+        }
+
+        // Store the order in database
+        // incomingUserId already captured earlier
         const tradeRecord = await Trade.create({
             userId: incomingUserId,
             ...order,
