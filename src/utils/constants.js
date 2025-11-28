@@ -1,3 +1,5 @@
+import { API_BASE } from '../config';
+
 // Trading window configuration
 export const TRADING_WINDOW = {
     start: "09:15",
@@ -13,7 +15,7 @@ export const TRADE_LIMITS = {
 
 // API configuration
 export const API_CONFIG = {
-    baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+    baseUrl: API_BASE,
     timeout: 30000, // 30 seconds
     retryCount: 3,
     retryDelay: 1000, // 1 second

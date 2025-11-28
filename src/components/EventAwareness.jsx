@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { AlertTriangle, Calendar, Globe, TrendingUp, Loader, Zap, Clock, DollarSign } from 'lucide-react';
 
+import { MARKET_API_BASE } from '../config';
+
 // --- Operational Constants ---
-const API_ENDPOINT = "http://localhost:5000/event-awareness";
+const API_ENDPOINT = `${MARKET_API_BASE}/event-awareness`;
 const MAX_RETRIES = 5; // Robustness for a trading system
 const TRADING_WINDOW = {
-    start: "09:15:00",
-    end: "11:15:00",
-    timezone: "Asia/Kolkata"
+  start: "09:15:00",
+  end: "11:15:00",
+  timezone: "Asia/Kolkata"
 };
 
 function EventAwareness() {
@@ -22,7 +24,7 @@ function EventAwareness() {
 
   // Dynamic styling based on volatility regime (Aligned with Advantix AGI risk levels)
   const regimeStyle = {
-    Calm: "bg-green-500/10 text-green-700 border-green-500 shadow-green-200/50", 
+    Calm: "bg-green-500/10 text-green-700 border-green-500 shadow-green-200/50",
     Normal: "bg-blue-500/10 text-blue-700 border-blue-500 shadow-blue-200/50",
     Elevated: "bg-orange-500/10 text-orange-700 border-orange-500 shadow-orange-200/50",
     Extreme: "bg-red-700 text-white border-red-900 shadow-red-500/50 animate-pulse",
@@ -97,7 +99,7 @@ function EventAwareness() {
   useEffect(() => {
     // Initial fetch
     fetchEventAwareness();
-    
+
     // Recheck every minute for trading window status and every 5 minutes for market data
     const tradingWindowInterval = setInterval(() => {
       setMarketState(prev => ({
@@ -139,18 +141,17 @@ function EventAwareness() {
               </p>
             </div>
           </div>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-            marketState.tradingWindowActive 
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+          <div className={`px-3 py-1 rounded-full text-sm font-medium ${marketState.tradingWindowActive
+              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
               : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-          }`}>
+            }`}>
             {marketState.tradingWindowActive ? 'ACTIVE' : 'CLOSED'}
           </div>
         </div>
       </div>
 
       {/* Main Event Awareness Card */}
-  <div className="p-4 sm:p-6 bg-gray-800 text-white sm:bg-white sm:text-gray-900 rounded-xl shadow-xl border sm:border-gray-100 dark:border-gray-700">
+      <div className="p-4 sm:p-6 bg-gray-800 text-white sm:bg-white sm:text-gray-900 rounded-xl shadow-xl border sm:border-gray-100 dark:border-gray-700">
         {loading ? (
           <div className="flex items-center space-x-3 text-blue-600 dark:text-blue-400 font-semibold py-1">
             <Loader className="animate-spin w-5 h-5" />
@@ -192,11 +193,10 @@ function EventAwareness() {
                 <div className="grid gap-3">
                   {marketState.events.map((event, i) => (
                     <div key={i} className="flex items-start space-x-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                      <div className={`w-2 h-2 mt-2 rounded-full ${
-                        event.severity === 'high' ? 'bg-red-500' :
-                        event.severity === 'medium' ? 'bg-yellow-500' :
-                        'bg-blue-500'
-                      }`} />
+                      <div className={`w-2 h-2 mt-2 rounded-full ${event.severity === 'high' ? 'bg-red-500' :
+                          event.severity === 'medium' ? 'bg-yellow-500' :
+                            'bg-blue-500'
+                        }`} />
                       <div>
                         <h4 className="font-medium text-gray-900 dark:text-gray-100">{event.type}</h4>
                         <p className="text-sm text-gray-600 dark:text-gray-400">{event.description}</p>
@@ -240,11 +240,10 @@ function EventAwareness() {
                             {event.title}
                           </td>
                           <td className="px-4 py-2">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              event.impact === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                              event.impact === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                              'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                            }`}>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${event.impact === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                event.impact === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                  'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                              }`}>
                               {event.impact.toUpperCase()}
                             </span>
                           </td>

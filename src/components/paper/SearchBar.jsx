@@ -43,9 +43,9 @@ const SearchBar = ({ onSelect, onSearch }) => {
       setError(null);
 
       try {
-        const base = MARKET_API_BASE || 'http://localhost:8081/api';
+        const base = MARKET_API_BASE;
         const res = await fetch(
-          `${base}/search?query=${encodeURIComponent(query)}`,
+          `${base}/search-stocks?query=${encodeURIComponent(query)}`,
           { signal: controllerRef.current.signal }
         );
 

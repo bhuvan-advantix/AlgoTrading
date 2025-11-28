@@ -204,7 +204,7 @@ export default function AccountView() {
   // Fetch live market prices for positions using market-data proxy
   const fetchLivePricesForPositions = React.useCallback(async (posList) => {
     try {
-      const base = MARKET_API_BASE || 'http://localhost:8081/api';
+      const base = MARKET_API_BASE;
       const syms = (posList || positions || []).map(p => (p.symbol || p.tradingsymbol || '').toUpperCase()).filter(Boolean);
       if (!syms.length) return;
       const uniq = Array.from(new Set(syms)).slice(0, 40);
@@ -966,10 +966,10 @@ export default function AccountView() {
                   <tr
                     key={t.id}
                     className={`border-b border-[#1e293b] ${t.side === 'BUY'
-                        ? 'text-green-400'
-                        : t.side === 'SELL'
-                          ? 'text-red-400'
-                          : 'text-cyan-300'
+                      ? 'text-green-400'
+                      : t.side === 'SELL'
+                        ? 'text-red-400'
+                        : 'text-cyan-300'
                       }`}
                   >
                     <td className="px-2 py-1">{new Date(t.ts).toLocaleString()}</td>

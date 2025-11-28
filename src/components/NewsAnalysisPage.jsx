@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { MARKET_API_BASE } from '../config';
 
 // --- Placeholder Dependencies for Canvas Environment ---
 const Card = ({ title, className = 'bg-gray-800/80', titleIcon: TitleIcon, children }) => (
@@ -13,25 +14,25 @@ const Card = ({ title, className = 'bg-gray-800/80', titleIcon: TitleIcon, child
     </div>
 );
 const ZapIcon = (props) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
 );
 const BarChart2Icon = (props) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
 );
 // Enhanced Search Icon (more professional and bold)
 const SearchIcon = (props) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
     </svg>
 );
 const XIcon = (props) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6L18 18" /></svg>
 );
 // -----------------------------------------------------
 
 // --- API Configuration ---
-const FINNHUB_API_KEY = "d3o7cd1r01qmj8304e7gd3o7cd1r01qmj8304e80"; 
-const GEMINI_API_KEY = "AIzaSyA6R7xrh6YIzlFRbn5TYL_KfwbD1w2oAPY"; // Specific Gemini Key
+const FINNHUB_API_KEY = "d3o7cd1r01qmj8304e7gd3o7cd1r01qmj8304e80";
+// GEMINI_API_KEY is now handled by the backend
 
 // Finnhub (for news data)
 const FINNHUB_NEWS_URL = () => {
@@ -39,25 +40,22 @@ const FINNHUB_NEWS_URL = () => {
     return `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_API_KEY}`;
 };
 
-// Gemini (for AI analysis)
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
-
 // --- AI Analysis Structure Definition ---
 const AI_RESPONSE_SCHEMA = {
     type: "OBJECT",
     properties: {
-        marketSentiment: { 
-            type: "STRING", 
-            description: "Overall market sentiment: Bullish, Bearish, or Neutral. Must be one of these three words." 
+        marketSentiment: {
+            type: "STRING",
+            description: "Overall market sentiment: Bullish, Bearish, or Neutral. Must be one of these three words."
         },
         keyFactors: {
             type: "ARRAY",
             description: "The top 5 most important economic or corporate factors influencing the market based on the news.",
             items: { type: "STRING" }
         },
-        recommendation: { 
-            type: "STRING", 
-            description: "A professional, concise, and actionable trading recommendation based on the sentiment and factors." 
+        recommendation: {
+            type: "STRING",
+            description: "A professional, concise, and actionable trading recommendation based on the sentiment and factors."
         },
         confidenceScore: {
             type: "NUMBER",
@@ -110,7 +108,7 @@ const NewsAnalysisPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isAILoading, setIsAILoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    
+
     const [aiAnalysis, setAiAnalysis] = useState({
         marketSentiment: "Analyzing...",
         keyFactors: [],
@@ -125,15 +123,15 @@ const NewsAnalysisPage = () => {
             return rawNews;
         }
         const lowerCaseQuery = searchQuery.toLowerCase();
-        
-        return rawNews.filter(item => 
+
+        return rawNews.filter(item =>
             item.headline.toLowerCase().includes(lowerCaseQuery) ||
             item.summary.toLowerCase().includes(lowerCaseQuery)
         );
     }, [rawNews, searchQuery]);
 
 
-    // --- 1. Generate AI Analysis using Gemini (uses provided API_KEY) ---
+    // --- 1. Generate AI Analysis using Backend Proxy ---
     const generateAIAnalysis = useCallback(async (newsData) => {
         setIsAILoading(true);
         try {
@@ -142,9 +140,9 @@ const NewsAnalysisPage = () => {
                 setAiAnalysis(prev => ({ ...prev, marketSentiment: "No Data", recommendation: "No news available for analysis." }));
                 return;
             }
-            
+
             // Construct a prompt with the headlines and summaries of the top 10 articles
-            const newsContext = analysisData.map(item => 
+            const newsContext = analysisData.map(item =>
                 `[${new Date(item.timestamp * 1000).toLocaleTimeString()}] ${item.headline}: ${item.summary}`
             ).join('\n\n');
 
@@ -161,7 +159,8 @@ const NewsAnalysisPage = () => {
                 }
             };
 
-            const response = await fetchWithRetry(GEMINI_API_URL + GEMINI_API_KEY, {
+            // Use Backend Proxy
+            const response = await fetchWithRetry(`${MARKET_API_BASE}/ai/news-analysis`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -169,12 +168,12 @@ const NewsAnalysisPage = () => {
 
             const result = await response.json();
             const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-            
+
             if (jsonText) {
                 const analysisResult = JSON.parse(jsonText);
                 setAiAnalysis(analysisResult);
             } else {
-                throw new Error('Gemini failed to generate structured response.');
+                throw new Error('Backend failed to return structured response.');
             }
 
         } catch (error) {
@@ -182,7 +181,7 @@ const NewsAnalysisPage = () => {
             setAiAnalysis(prev => ({
                 ...prev,
                 marketSentiment: "Analysis Error",
-                keyFactors: ["LLM Processing Failure"],
+                keyFactors: ["Backend Processing Failure"],
                 recommendation: "The AI model encountered a processing error. Check console for details."
             }));
         } finally {
@@ -198,11 +197,11 @@ const NewsAnalysisPage = () => {
             if (!FINNHUB_API_KEY) {
                 throw new Error("Finnhub API Key is required to fetch news.");
             }
-            
-            const url = FINNHUB_NEWS_URL(); 
+
+            const url = FINNHUB_NEWS_URL();
             const response = await fetchWithRetry(url);
             const data = await response.json();
-            
+
             if (Array.isArray(data)) {
                 // Finnhub structure: item.headline, item.summary, item.datetime (UNIX), item.source, item.url
                 const processedNews = data.map(item => ({
@@ -213,16 +212,16 @@ const NewsAnalysisPage = () => {
                     url: item.url,
                     source: item.source || 'Unknown' // Added source for better deduplication/display
                 }));
-                
+
                 // Deduplicate the entire fetched list
-                const deduplicatedNews = deduplicateNews(processedNews); 
-                
+                const deduplicatedNews = deduplicateNews(processedNews);
+
                 // Store the full, deduplicated raw news list
-                setRawNews(deduplicatedNews); 
-                
+                setRawNews(deduplicatedNews);
+
                 // Trigger AI Analysis generation on the top 10 articles
                 if (deduplicatedNews.length > 0) {
-                    generateAIAnalysis(deduplicatedNews); 
+                    generateAIAnalysis(deduplicatedNews);
                 } else {
                     setAiAnalysis(prev => ({ ...prev, marketSentiment: "No Data", recommendation: "No recent market news found." }));
                 }
@@ -255,7 +254,7 @@ const NewsAnalysisPage = () => {
         // Filtering happens automatically via the useMemo hook as searchQuery changes.
         // We only need to prevent the form from submitting normally.
     };
-    
+
     // Handler for clearing the search
     const clearSearch = () => {
         setSearchQuery('');
@@ -264,19 +263,19 @@ const NewsAnalysisPage = () => {
     // Initial load and periodic refresh
     useEffect(() => {
         fetchNewsData(); // Initial load
-        
+
         // Refresh data and analysis every 5 minutes (300000 ms) 
         // to get the latest Finnhub headlines.
         const intervalId = setInterval(fetchNewsData, 300000);
-        
+
         return () => clearInterval(intervalId);
-    }, [fetchNewsData]); 
+    }, [fetchNewsData]);
 
 
     // --- Helper for Sentiment Styling ---
     const getSentimentClasses = (sentiment) => {
         const lowerSentiment = sentiment ? sentiment.toLowerCase() : 'neutral';
-        
+
         switch (lowerSentiment) {
             case 'bullish':
             case 'positive':
@@ -297,7 +296,7 @@ const NewsAnalysisPage = () => {
             <h1 className="text-3xl font-extrabold text-white border-b border-teal-500/50 pb-3 mb-6">
                 Market News & Predictive AI
             </h1>
-            
+
             {/* AI Market Analysis Card */}
             <Card className="bg-gray-800/80 p-4 md:p-6 shadow-2xl rounded-xl border border-gray-700">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
@@ -322,8 +321,8 @@ const NewsAnalysisPage = () => {
                             <div className="mt-3 w-full">
                                 <span className="text-xs text-gray-400 block mb-1">Confidence: {(aiAnalysis.confidenceScore * 100).toFixed(0)}%</span>
                                 <div className="w-full bg-gray-700 rounded-full h-2">
-                                    <div 
-                                        className={`h-2 rounded-full ${sentimentStyle.border.replace('border-', 'bg-')}`} 
+                                    <div
+                                        className={`h-2 rounded-full ${sentimentStyle.border.replace('border-', 'bg-')}`}
                                         style={{ width: `${Math.min(100, aiAnalysis.confidenceScore * 100)}%` }}
                                     ></div>
                                 </div>
@@ -357,7 +356,7 @@ const NewsAnalysisPage = () => {
 
             {/* News Feed with Search and Results */}
             <Card title="Latest Market Headlines" titleIcon={BarChart2Icon} className="bg-gray-800/80 p-6 shadow-2xl rounded-xl border border-gray-700">
-                
+
                 {/* Professional Search Bar (Windmill UI inspired) */}
                 <form onSubmit={handleSearch} className="mb-6">
                     <div className="relative flex items-center h-12">
@@ -376,10 +375,10 @@ const NewsAnalysisPage = () => {
 
                         {/* Conditional Clear Button */}
                         {searchQuery && (
-                            <button 
-                                type="button" 
-                                onClick={clearSearch} 
-                                aria-label="Clear Search" 
+                            <button
+                                type="button"
+                                onClick={clearSearch}
+                                aria-label="Clear Search"
                                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-teal-400 hover:text-teal-200 transition-colors z-10 p-1 rounded-full bg-teal-900/10 hover:bg-teal-800/20 focus:outline-none focus:ring-2 focus:ring-teal-400"
                             >
                                 <XIcon className="w-5 h-5" />
@@ -396,7 +395,7 @@ const NewsAnalysisPage = () => {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        
+
                         {filteredNews.length === 0 && (
                             <div className="p-6 text-center text-gray-400 bg-gray-700/50 rounded-lg">
                                 No recent news articles found matching your query.
@@ -404,10 +403,10 @@ const NewsAnalysisPage = () => {
                         )}
 
                         {filteredNews.map((item) => (
-                            <a 
+                            <a
                                 key={`${item.id}-${item.timestamp}`} // Use combined key for stability
-                                href={item.url} 
-                                target="_blank" 
+                                href={item.url}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="block p-4 bg-gray-700/30 rounded-lg transition-all duration-300 hover:bg-gray-700/50 hover:shadow-xl border-l-4 border-gray-500 hover:border-teal-500 w-full"
                             >

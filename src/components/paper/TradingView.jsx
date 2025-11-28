@@ -5,6 +5,7 @@ import OrderForm from './OrderForm';
 import PortfolioSummary from './PortfolioSummary';
 import MarketDataService from '../../services/marketDataService';
 import { placeMarketOrder, readState, subscribePrice, setPrice } from '../../utils/paperTradingStore';
+import { MARKET_API_BASE } from '../../config';
 
 /*
   TradingViewProfessional.jsx
@@ -261,7 +262,7 @@ export default function TradingViewProfessional() {
       // backend search (may be slow) - merge results, prefer backend
       let backend = [];
       try {
-        const res = await fetch(`http://localhost:8081/api/search?query=${encodeURIComponent(q)}`);
+        const res = await fetch(`${MARKET_API_BASE}/search-stocks?query=${encodeURIComponent(q)}`);
         const data = await res.json();
         if (Array.isArray(data.results)) backend = data.results;
       } catch {

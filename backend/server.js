@@ -176,6 +176,51 @@ app.get('/api/ai/summary', async (req, res) => {
   }
 });
 
+// News Analysis Proxy (Gemini)
+app.post('/api/ai/news-analysis', async (req, res) => {
+  try {
+    console.log('Calling News Analysis AI (Gemini)...');
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyA6R7xrh6YIzlFRbn5TYL_KfwbD1w2oAPY";
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
+
+    const response = await axios.post(GEMINI_URL, req.body);
+    // Gemini returns a complex object, we just pass it back safely
+    res.json(response.data);
+  } catch (error) {
+    console.error("AI News Analysis Error:", error.message);
+    // Return a valid JSON error structure that the frontend can handle gracefully
+    res.json({
+      error: "Failed to analyze news",
+      details: error.message,
+      candidates: [{
+        content: {
+          parts: [{
+            text: JSON.stringify({
+              marketSentiment: "Analysis Error",
+              keyFactors: ["Backend Proxy Failure"],
+              recommendation: "Unable to process AI analysis at this time.",
+              confidenceScore: 0
+            })
+          }]
+        }
+      }]
+    });
+  }
+});
+
+// Mock Event Awareness Endpoint
+app.get('/api/event-awareness', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      regime: "Normal",
+      events: [],
+      economicCalendar: [],
+      notes: "Market conditions are normal. No major events detected."
+    }
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Market Data Server running on port ${PORT}`);
 });
