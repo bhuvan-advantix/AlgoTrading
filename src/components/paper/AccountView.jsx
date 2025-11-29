@@ -66,7 +66,7 @@ export default function AccountView() {
 
   const [kiteOrders, setKiteOrders] = useState([]);
   const [kiteLastUpdated, setKiteLastUpdated] = useState(null);
-  const [activeZerodhaTab, setActiveZerodhaTab] = useState('dashboard'); // 'dashboard' | 'successful' | 'failed'
+  const [activeZerodhaTab, setActiveZerodhaTab] = useState('successful'); // 'successful' | 'failed'
 
   // Debounce timer for order fetching to prevent rate limiting
   const _orderFetchTimerRef = React.useRef(null);
@@ -128,7 +128,8 @@ export default function AccountView() {
     try {
       const r = await fetch(`${API_URL}/api/kite/account`, { headers: { 'x-user-id': kiteUserId } });
       if (!r.ok) {
-        throw new Error(`Server returned ${r.status}`);
+        const txt = await r.text();
+        throw new Error(`Server returned ${r.status}: ${txt}`);
       }
       const j = await r.json();
       if (j.success) {
@@ -147,13 +148,8 @@ export default function AccountView() {
 
   // Fetch Zerodha/Kite account details if user has connected (kiteUserId in context or localStorage)
   useEffect(() => {
-    const kiteUserId = ctxKiteUserId || (() => {
-      try { return localStorage.getItem('kiteUserId'); } catch { return null; }
-    })();
-
-
     fetchKiteAccount();
-  }, [ctxKiteUserId]);
+  }, [fetchKiteAccount]);
 
   // Fetch kite orders explicitly from backend (define first before use in deps)
   const fetchKiteOrders = React.useCallback(async (kiteUserId) => {
@@ -364,17 +360,6 @@ export default function AccountView() {
     return /reject|fail|error|rejected|cancelled/i.test(s) || Boolean(o.error);
   }), [kiteOrders]);
 
-  const _inflowOutflow = useMemo(() => {
-    let inTotal = 0; let outTotal = 0;
-    combinedOrders.forEach(o => {
-      const amt = Number(o.amount ?? o.traded_value ?? (o.qty && o.price ? o.qty * o.price : 0)) || 0;
-      // buys are outflows, sells inflows
-      const side = String(o.side || o.transaction_type || o.transaction || '').toLowerCase() || String(o.order_type || '').toLowerCase();
-      if (/sell/i.test(side)) inTotal += amt; else outTotal += amt;
-    });
-    return { inTotal, outTotal };
-  }, [combinedOrders]);
-
   const portfolioHistory = useMemo(() => {
     const hist = equityHistory.map(e => ({
       time: new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -394,13 +379,8 @@ export default function AccountView() {
   ];
   const COLORS = ['#00bcd4', '#1e88e5', '#00e676', '#ff5252'];
 
-  // --- Transaction Helper ---
-  // Transactions now come from the store (orders)
-
   // --- Add Funds ---
   const handleAddFunds = () => {
-    // Note: Add funds functionality would require store modification
-    // For now, disabled
     console.log('Add funds not yet supported');
   };
 
@@ -514,6 +494,11 @@ export default function AccountView() {
                 </span>
                 {kiteLastUpdated && <span className="text-xs text-gray-500">· Updated {new Date(kiteLastUpdated).toLocaleTimeString()}</span>}
               </div>
+              {kiteError && (
+                <div className="mt-2 text-red-400 text-sm bg-red-500/10 p-2 rounded border border-red-500/20">
+                  Error: {kiteError}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -531,12 +516,6 @@ export default function AccountView() {
         {kiteLoading ? (
           <div className="text-center py-8">
             <div className="inline-block text-gray-400">Loading Zerodha account details...</div>
-          </div>
-        ) : kiteError ? (
-          <div className="bg-red-900/20 border border-red-600 p-6 rounded-lg">
-            <div className="text-red-300 font-semibold mb-2">Connection Error</div>
-            <div className="text-red-200 text-sm mb-3">{kiteError}</div>
-            <div className="text-xs text-gray-400">Ensure the backend at <span className="font-mono text-gray-300">{API_URL}</span> is running.</div>
           </div>
         ) : !kiteAccount ? (
           <div className="bg-blue-900/20 border border-blue-600 p-6 rounded-lg text-center">
@@ -601,37 +580,6 @@ export default function AccountView() {
                       <div className="text-xs text-gray-400">Used Margin</div>
                       <div className="text-xl font-bold text-orange-400 mt-1">
                         {formatCurrency(kiteAccount.margins.equity.utilised?.debits ?? 0)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Profile Info */}
-              {kiteAccount.profile && (
-                <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
-                  <h3 className="text-sm font-semibold text-gray-300 mb-4">Account Info</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="text-xs text-gray-400">Account Holder</div>
-                      <div className="text-lg font-semibold text-white mt-1">
-                        {kiteAccount.profile.user_name || kiteAccount.profile.user_shortname || '—'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">User ID</div>
-                      <div className="text-lg font-mono text-gray-300 mt-1">{kiteAccount.profile.user_id || '—'}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">Email</div>
-                      <div className="text-lg font-semibold text-white mt-1">
-                        {kiteAccount.profile.email || '—'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">Broker</div>
-                      <div className="text-lg font-semibold text-white mt-1">
-                        {kiteAccount.profile.broker || 'Zerodha'}
                       </div>
                     </div>
                   </div>
@@ -1006,7 +954,7 @@ export default function AccountView() {
           Reset Account
         </button>
       </div>
-    </div >
+    </div>
   );
 }
 
@@ -1038,4 +986,3 @@ const ChartCard = ({ title, children }) => (
     {children}
   </div>
 );
-
