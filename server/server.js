@@ -78,7 +78,8 @@ mongoose.connect(mongoDbUri, {
     })
     .catch(err => {
         console.error("🚫 MongoDB Connection Error:", err);
-        process.exit(1);
+        console.warn('[server] Continuing without MongoDB. Some features will be degraded.');
+        // Do not exit the process; allow the server to run without DB for endpoints that do not require persistence.
     });
 
 // --- Schemas & Models ---
