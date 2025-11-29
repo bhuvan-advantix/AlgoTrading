@@ -261,7 +261,7 @@ export default function TradingViewProfessional() {
       // backend search (may be slow) - merge results, prefer backend
       let backend = [];
       try {
-        const apiBase = import.meta.env.VITE_MARKET_API_URL || 'https://algotrading-2sbm.onrender.com/api';
+        const apiBase = import.meta.env.VITE_MARKET_API_URL || 'https://algotrading-1-v2p7.onrender.com/api';
         const res = await fetch(`${apiBase}/search?query=${encodeURIComponent(q)}`);
         const data = await res.json();
         if (Array.isArray(data.results)) backend = data.results;

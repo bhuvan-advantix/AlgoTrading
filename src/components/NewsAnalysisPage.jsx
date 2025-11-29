@@ -117,7 +117,7 @@ const NewsAnalysisPage = () => {
 
             // Call the backend endpoint instead of Gemini directly
             // Using environment variable for API URL to support both local and production
-            const apiUrl = import.meta.env.VITE_API_URL || 'https://algotrading-1-v2p7.onrender.com';
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://algotrading-2sbm.onrender.com';
             const response = await fetchWithRetry(`${apiUrl}/api/ai/news-analysis`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

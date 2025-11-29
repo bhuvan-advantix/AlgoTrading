@@ -204,7 +204,7 @@ export default function AccountView() {
   // Fetch live market prices for positions using market-data proxy
   const fetchLivePricesForPositions = React.useCallback(async (posList) => {
     try {
-      const base = MARKET_API_BASE || 'https://algotrading-2sbm.onrender.com/api';
+      const base = MARKET_API_BASE || 'https://algotrading-1-v2p7.onrender.com/api';
       const syms = (posList || positions || []).map(p => (p.symbol || p.tradingsymbol || '').toUpperCase()).filter(Boolean);
       if (!syms.length) return;
       const uniq = Array.from(new Set(syms)).slice(0, 40);

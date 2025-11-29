@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { AlertTriangle, Calendar, Globe, TrendingUp, Loader, Zap, Clock, DollarSign } from 'lucide-react';
 
 // --- Operational Constants ---
-const API_ENDPOINT = `${import.meta.env.VITE_API_URL || 'https://algotrading-1-v2p7.onrender.com'}/event-awareness`;
+const API_ENDPOINT = `${import.meta.env.VITE_API_URL || 'https://algotrading-2sbm.onrender.com'}/event-awareness`;
 const MAX_RETRIES = 5; // Robustness for a trading system
 const TRADING_WINDOW = {
   start: "09:15:00",

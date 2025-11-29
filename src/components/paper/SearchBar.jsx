@@ -43,7 +43,7 @@ const SearchBar = ({ onSelect, onSearch }) => {
       setError(null);
 
       try {
-        const base = MARKET_API_BASE || 'https://algotrading-2sbm.onrender.com/api';
+        const base = MARKET_API_BASE || 'https://algotrading-1-v2p7.onrender.com/api';
         const res = await fetch(
           `${base}/search?query=${encodeURIComponent(query)}`,
           { signal: controllerRef.current.signal }

@@ -1,5 +1,5 @@
 class MarketDataService {
-  static API_BASE = import.meta.env.VITE_MARKET_API_URL || 'https://algotrading-2sbm.onrender.com/api';
+  static API_BASE = import.meta.env.VITE_MARKET_API_URL || 'https://algotrading-1-v2p7.onrender.com/api';
 
   /* -----------------------------------------
      1) GET HISTORICAL DATA (from backend only)

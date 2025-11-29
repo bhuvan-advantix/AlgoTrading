@@ -13,7 +13,7 @@ export const TRADE_LIMITS = {
 
 // API configuration
 export const API_CONFIG = {
-    baseUrl: import.meta.env.VITE_API_URL || 'https://algotrading-1-v2p7.onrender.com',
+    baseUrl: import.meta.env.VITE_API_URL || 'https://algotrading-2sbm.onrender.com',
     timeout: 30000, // 30 seconds
     retryCount: 3,
     retryDelay: 1000, // 1 second
