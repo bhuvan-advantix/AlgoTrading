@@ -15,7 +15,7 @@ const router = express.Router();
 console.log('[aiAnalysis] Router initialized');
 
 // Initialize Gemini (guard if key missing)
-const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDDmsSvwFfqN36Cz4vvw_uOwOzvYOKnXis';
+const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCKlsNISHYohKcoF_BA6bSPcVmYeBp5Iqw';
 let genAI = null;
 if (GEMINI_KEY) {
   genAI = new GoogleGenerativeAI(GEMINI_KEY);
@@ -170,16 +170,16 @@ Focus on real economic drivers and market impact. Be professional and use formal
 
       // Build a small corpus from headlines+summary
       const corpus = analysisData.map(it => `${it.headline} ${it.summary}`).join(' ').toLowerCase();
-      const stopWords = new Set(['the','and','a','to','of','in','for','on','with','by','is','are','from','at','as','that','this','it','be','has','have']);
+      const stopWords = new Set(['the', 'and', 'a', 'to', 'of', 'in', 'for', 'on', 'with', 'by', 'is', 'are', 'from', 'at', 'as', 'that', 'this', 'it', 'be', 'has', 'have']);
       const words = corpus.split(/[^a-zA-Z0-9]+/).filter(w => w && !stopWords.has(w) && w.length > 2);
       const freq = {};
       for (const w of words) freq[w] = (freq[w] || 0) + 1;
-      const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 8);
-      const keyFactors = sorted.slice(0,3).map(s => s[0].replace(/_/g,' '));
+      const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      const keyFactors = sorted.slice(0, 3).map(s => s[0].replace(/_/g, ' '));
 
       // simple sentiment lexicon (small, conservative)
-      const positive = ['rise','gains','up','beat','upgrade','positive','good','surge','gain','increase'];
-      const negative = ['fall','down','drop','miss','downgrade','negative','loss','decline','slump','weak'];
+      const positive = ['rise', 'gains', 'up', 'beat', 'upgrade', 'positive', 'good', 'surge', 'gain', 'increase'];
+      const negative = ['fall', 'down', 'drop', 'miss', 'downgrade', 'negative', 'loss', 'decline', 'slump', 'weak'];
       let pos = 0, neg = 0;
       for (const p of positive) if (corpus.includes(p)) pos++;
       for (const n of negative) if (corpus.includes(n)) neg++;
