@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import { readState, resetSession, subscribePrice } from '../../utils/paperTradingStore';
 import { AppContext } from '../../context/AppContext';
-import { API_BASE, MARKET_API_BASE } from '../../config';
+import { API_URL, MARKET_API_BASE } from '../../config';
 import SearchBar from './SearchBar';
 
 export default function AccountView() {
@@ -130,7 +130,7 @@ export default function AccountView() {
       setKiteLoading(true);
       setKiteError(null);
       try {
-        const resp = await fetch(`${API_BASE}/kite/account`, {
+        const resp = await fetch(`${API_URL}/api/kite/account`, {
           headers: { 'x-user-id': kiteUserId }
         });
 
@@ -184,7 +184,7 @@ export default function AccountView() {
 
     if (!kiteUserId) return;
     try {
-      const r = await fetch(`${API_BASE}/kite/orders`, { headers: { 'x-user-id': kiteUserId } });
+      const r = await fetch(`${API_URL}/api/kite/orders`, { headers: { 'x-user-id': kiteUserId } });
       if (!r.ok) return;
       const ct = r.headers.get('content-type') || '';
       if (!ct.includes('application/json')) return;
@@ -235,7 +235,7 @@ export default function AccountView() {
       if (kiteAccount) {
         const kiteUserId = ctxKiteUserId || (() => { try { return localStorage.getItem('kiteUserId'); } catch { return null; } })();
         if (kiteUserId) {
-          fetch(`${API_BASE}/kite/account`, { headers: { 'x-user-id': kiteUserId } })
+          fetch(`${API_URL}/api/kite/account`, { headers: { 'x-user-id': kiteUserId } })
             .then(async r => {
               if (r.ok) {
                 try { const d = await r.json(); if (d?.success) setKiteAccount(d.data || {}); }
@@ -299,7 +299,7 @@ export default function AccountView() {
     setPlacingOrder(true);
     setOrderResult(null);
     try {
-      const res = await fetch(`${API_BASE}/kite/order`, {
+      const res = await fetch(`${API_URL}/api/kite/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': confirmPayload.kiteUserId },
         body: JSON.stringify({
@@ -333,7 +333,7 @@ export default function AccountView() {
         setOrderResult({ ok: true, msg: 'Order placed successfully! Updating live data...' });
         // Refresh kite account and orders immediately
         try {
-          const acct = await fetch(`${API_BASE}/kite/account`, { headers: { 'x-user-id': confirmPayload.kiteUserId } });
+          const acct = await fetch(`${API_URL}/api/kite/account`, { headers: { 'x-user-id': confirmPayload.kiteUserId } });
           if (acct.ok) {
             const aj = await acct.json().catch(() => null);
             if (aj?.success) {
@@ -553,7 +553,7 @@ export default function AccountView() {
           <div className="bg-red-900/20 border border-red-600 p-6 rounded-lg">
             <div className="text-red-300 font-semibold mb-2">Connection Error</div>
             <div className="text-red-200 text-sm mb-3">{kiteError}</div>
-            <div className="text-xs text-gray-400">Ensure the backend at <span className="font-mono text-gray-300">{API_BASE}</span> is running.</div>
+            <div className="text-xs text-gray-400">Ensure the backend at <span className="font-mono text-gray-300">{API_URL}</span> is running.</div>
           </div>
         ) : !kiteAccount ? (
           <div className="bg-blue-900/20 border border-blue-600 p-6 rounded-lg text-center">

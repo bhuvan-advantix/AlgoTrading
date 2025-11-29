@@ -25,7 +25,7 @@ import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, limit
 
 // Base API URL assumes the backend is running on port 5000
 // Import configuration
-import { ZERODHA_API_KEY, FINNHUB_API_KEY, TWELVEDATA_API_KEY, API_BASE, APP_CONFIG } from './config';
+import { ZERODHA_API_KEY, FINNHUB_API_KEY, TWELVEDATA_API_KEY, API_URL, APP_CONFIG } from './config';
 
 // --- UTILITIES ---
 
@@ -247,7 +247,7 @@ const useAdvantixState = () => {
     const handleZerodhaLogin = async () => {
         try {
             // Fetch login URL from backend which uses the user's stored API key
-            const response = await fetch(`${API_BASE}/kite/login?userId=${userId}`);
+            const response = await fetch(`${API_URL}/api/kite/login?userId=${userId}`);
             const data = await response.json();
 
             if (data.success && data.data?.loginUrl) {
@@ -272,7 +272,7 @@ const useAdvantixState = () => {
         // --- STEP 2: Send to Backend for Session Key Exchange ---
         // The backend must complete the exchange using the API secret.
         try {
-            const response = await fetchWithRetry(`${API_BASE}/kite/exchange-token`, {
+            const response = await fetchWithRetry(`${API_URL}/api/kite/exchange-token`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -546,7 +546,7 @@ const DashboardPage = () => {
             // Optionally fetch latest market price preview for this symbol (best-effort)
             try {
                 const s = payload.symbol;
-                const qp = await fetch(`${API_BASE}/market/quotes?symbol=${encodeURIComponent(s)}`);
+                const qp = await fetch(`${API_URL}/api/market/quotes?symbol=${encodeURIComponent(s)}`);
                 if (qp.ok) {
                     const qj = await qp.json();
                     if (qj?.success && Array.isArray(qj.data) && qj.data.length > 0) {
@@ -561,7 +561,7 @@ const DashboardPage = () => {
             }
 
 
-            const response = await fetchWithRetry(`${API_BASE}/trades/execute`, {
+            const response = await fetchWithRetry(`${API_URL}/api/trades/execute`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -908,7 +908,7 @@ const AuthPage = () => {
         setIsLoading(true);
         try {
             // 1. Save Keys to Backend
-            const saveResp = await fetch(`${API_BASE}/user/save-kite-keys`, {
+            const saveResp = await fetch(`${API_URL}/api/user/save-kite-keys`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, apiKey, apiSecret })
@@ -920,7 +920,7 @@ const AuthPage = () => {
             }
 
             // 2. Initiate Login (Fetch URL from backend)
-            const loginResp = await fetch(`${API_BASE}/kite/login?userId=${userId}`);
+            const loginResp = await fetch(`${API_URL}/api/kite/login?userId=${userId}`);
             const loginData = await loginResp.json();
 
             if (loginData.success && loginData.data?.loginUrl) {
