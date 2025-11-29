@@ -121,6 +121,17 @@ const SearchBar = ({ onSelect, onSearch }) => {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (results.length > 0) {
+                handleSelect(results[0].symbol || results[0].tradingsymbol);
+              } else if (query.trim()) {
+                // Fallback: use typed query if no results (user might know the symbol)
+                handleSelect(query.trim().toUpperCase());
+              }
+            }
+          }}
           placeholder="Search stocks (TCS, RELIANCE, INFY...)"
           className="w-full pl-12 pr-4 py-3 bg-[#0d1b2a] text-white rounded-xl
           border border-blue-500/20 focus:border-blue-500/40

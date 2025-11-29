@@ -509,11 +509,9 @@ export default function AccountView() {
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 <span className="text-xs text-green-400">Live · Connected</span>
-                {kiteAccount?.profile?.user_name && (
-                  <span className="text-xs text-gray-300">
-                    · {kiteAccount.profile.user_name}
-                  </span>
-                )}
+                <span className="text-xs text-gray-300">
+                  · {kiteAccount?.profile?.user_name || kiteAccount?.profile?.user_shortname || kiteAccount?.profile?.user_id || 'Trader'}
+                </span>
                 {kiteLastUpdated && <span className="text-xs text-gray-500">· Updated {new Date(kiteLastUpdated).toLocaleTimeString()}</span>}
               </div>
             </div>
