@@ -289,7 +289,7 @@ Focus on real economic drivers and market impact. Be professional and use formal
       try {
         console.warn('[news-analysis] Falling back to heuristic analysis due to Gemini error');
         const corpus = analysisData.map(it => `${it.headline} ${it.summary}`).join(' ').toLowerCase();
-        const stopWords = new Set(['the', 'and', 'a', 'to', 'of', 'in', 'for', 'on', 'with', 'by', 'is', 'are', 'from', 'at', 'as', 'that', 'this', 'it', 'be', 'has', 'have']);
+        const stopWords = new Set(['the', 'and', 'a', 'to', 'of', 'in', 'for', 'on', 'with', 'by', 'is', 'are', 'from', 'at', 'as', 'that', 'this', 'it', 'be', 'has', 'have', 'was', 'were', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'must', 'do', 'does', 'did', 'done', 'but', 'or', 'nor', 'not', 'so', 'yet', 'if', 'than', 'then', 'else', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'you', 'your', 'we', 'our', 'he', 'she', 'they', 'them', 'my', 'me', 'us', 'him', 'her', 'stock', 'stocks', 'market', 'markets', 'share', 'shares', 'price', 'prices', 'value', 'values', 'since', 'ago', 'today', 'yesterday', 'tomorrow', 'week', 'month', 'year', 'day', 'time', 'times']);
         const words = corpus.split(/[^a-zA-Z0-9]+/).filter(w => w && !stopWords.has(w) && w.length > 2);
         const freq = {};
         for (const w of words) freq[w] = (freq[w] || 0) + 1;
