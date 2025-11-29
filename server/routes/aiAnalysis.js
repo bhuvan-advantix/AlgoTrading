@@ -162,36 +162,69 @@ Provide your analysis in the following JSON format:
 
 Focus on real economic drivers and market impact. Be professional and use formal financial language.`;
 
-    console.log('[news-analysis] Calling Gemini API...');
+    console.log('[news-analysis] Processing analysis request');
 
-    // Use gemini-pro which is stable and widely available
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // If Gemini isn't initialized, perform a lightweight heuristic analysis
+    if (!genAI) {
+      console.warn('[news-analysis] Gemini not available, using local heuristic fallback');
 
-    console.log('[news-analysis] Gemini response received');
+      // Build a small corpus from headlines+summary
+      const corpus = analysisData.map(it => `${it.headline} ${it.summary}`).join(' ').toLowerCase();
+      const stopWords = new Set(['the','and','a','to','of','in','for','on','with','by','is','are','from','at','as','that','this','it','be','has','have']);
+      const words = corpus.split(/[^a-zA-Z0-9]+/).filter(w => w && !stopWords.has(w) && w.length > 2);
+      const freq = {};
+      for (const w of words) freq[w] = (freq[w] || 0) + 1;
+      const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 8);
+      const keyFactors = sorted.slice(0,3).map(s => s[0].replace(/_/g,' '));
 
-    // Try to extract JSON from the response
-    let json;
-    try {
-      // Remove markdown code blocks if present
-      const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      json = JSON.parse(cleanText);
-    } catch (parseError) {
-      console.error('[news-analysis] JSON parse error:', parseError);
-      console.log('[news-analysis] Raw text:', text.substring(0, 200));
+      // simple sentiment lexicon (small, conservative)
+      const positive = ['rise','gains','up','beat','upgrade','positive','good','surge','gain','increase'];
+      const negative = ['fall','down','drop','miss','downgrade','negative','loss','decline','slump','weak'];
+      let pos = 0, neg = 0;
+      for (const p of positive) if (corpus.includes(p)) pos++;
+      for (const n of negative) if (corpus.includes(n)) neg++;
+      let marketSentiment = 'Neutral';
+      if (pos > neg) marketSentiment = 'Bullish';
+      else if (neg > pos) marketSentiment = 'Bearish';
 
-      // Fallback: create a structured response from the text
-      json = {
-        marketSentiment: "Neutral",
-        keyFactors: ["Analysis completed but formatting issue occurred"],
-        recommendation: text.substring(0, 500),
-        confidenceScore: 0.5
-      };
+      const confidenceScore = Math.min(0.95, Math.max(0.2, Math.abs(pos - neg) / Math.max(1, pos + neg)));
+      const recommendation = marketSentiment === 'Bullish' ? 'Consider BUY on strength; validate with price action.' : marketSentiment === 'Bearish' ? 'Consider SELL/HEDGE on weakness; validate with risk management.' : 'No clear directional signal; stay neutral.';
+
+      return res.json({ marketSentiment, keyFactors, recommendation, confidenceScore });
     }
 
-    res.json(json);
+    // If Gemini is available, use the safe wrapper to get text and then parse JSON
+    try {
+      const text = await generateFromGemini(prompt, 'gemini-pro');
+      const cleaned = stripFencedJson(text);
+      const parsed = tryParseJSONMaybeString(cleaned);
+      if (parsed && typeof parsed === 'object' && parsed.marketSentiment) {
+        return res.json(parsed);
+      }
+
+      // If parsed is not structured as expected, attempt to parse JSON directly from cleaned text
+      try {
+        const json = JSON.parse(cleaned);
+        return res.json(json);
+      } catch (err) {
+        // fallback structured response
+        return res.json({
+          marketSentiment: 'Neutral',
+          keyFactors: ['AI returned unstructured text'],
+          recommendation: cleaned.substring(0, 500),
+          confidenceScore: 0.5
+        });
+      }
+    } catch (err) {
+      console.error('[news-analysis] Gemini error fallback:', err.message || err);
+      return res.status(500).json({
+        marketSentiment: "Analysis Error",
+        keyFactors: ["External AI failure"],
+        recommendation: `Backend Error: ${err.message || 'AI provider error'}`,
+        confidenceScore: 0,
+        details: err.message || String(err)
+      });
+    }
 
   } catch (error) {
     console.error('[news-analysis] Error:', error.message);
