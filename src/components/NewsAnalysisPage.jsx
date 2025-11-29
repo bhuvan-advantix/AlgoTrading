@@ -118,13 +118,21 @@ const NewsAnalysisPage = () => {
             // Call the backend endpoint instead of Gemini directly
             // Using environment variable for API URL to support both local and production
             const apiUrl = import.meta.env.VITE_API_URL || 'https://algotrading-2sbm.onrender.com';
+            console.log('[NewsAnalysis] Calling:', `${apiUrl}/api/ai/news-analysis`);
             const response = await fetchWithRetry(`${apiUrl}/api/ai/news-analysis`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ news: analysisData })
             });
 
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[NewsAnalysis] Backend error:', response.status, errorText);
+                throw new Error(`Backend returned ${response.status}: ${errorText.substring(0, 200)}`);
+            }
+
             const result = await response.json();
+            console.log('[NewsAnalysis] Result:', result);
 
             if (result && result.marketSentiment) {
                 setAiAnalysis(result);
@@ -138,7 +146,7 @@ const NewsAnalysisPage = () => {
                 ...prev,
                 marketSentiment: "Analysis Error",
                 keyFactors: ["Server Connection Failure"],
-                recommendation: "The AI analysis service is currently unavailable. Please check backend connection."
+                recommendation: `Backend Error: ${error.message || 'Please check if backend is deployed and running.'}`
             }));
         } finally {
             setIsAILoading(false);

@@ -124,53 +124,6 @@ export default function AccountView() {
       try { return localStorage.getItem('kiteUserId'); } catch { return null; }
     })();
 
-    if (!kiteUserId) return;
-
-    const fetchKiteAccount = async () => {
-      setKiteLoading(true);
-      setKiteError(null);
-      try {
-        const resp = await fetch(`${API_URL}/api/kite/account`, {
-          headers: { 'x-user-id': kiteUserId }
-        });
-
-        // If server returned non-JSON (HTML error page), read text and show friendly error
-        const contentType = resp.headers.get('content-type') || '';
-        if (!resp.ok) {
-          const txt = await resp.text();
-          const short = txt.length > 200 ? txt.slice(0, 200) + '...' : txt;
-          setKiteError(`Server returned ${resp.status}: ${short}`);
-          setKiteAccount(null);
-          return;
-        }
-
-        if (!contentType.includes('application/json')) {
-          const txt = await resp.text();
-          setKiteError(`Unexpected server response (not JSON). ${txt.slice(0, 200)}`);
-          setKiteAccount(null);
-          return;
-        }
-
-        const data = await resp.json();
-        if (data && data.success) {
-          setKiteAccount(data.data || {});
-          // capture orders if the endpoint returned them
-          if (Array.isArray(data.data.orders)) {
-            setKiteOrders(data.data.orders || []);
-            setKiteLastUpdated(Date.now());
-          }
-        } else {
-          setKiteError(data?.error || 'Failed to fetch Kite account');
-          setKiteAccount(null);
-        }
-      } catch (err) {
-        console.error('Kite account fetch error', err);
-        setKiteError(err.message || String(err));
-        setKiteAccount(null);
-      } finally {
-        setKiteLoading(false);
-      }
-    };
 
     fetchKiteAccount();
   }, [ctxKiteUserId]);
@@ -524,504 +477,492 @@ export default function AccountView() {
             <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500 flex items-center justify-center">
               <span className="text-blue-400 font-bold">Z</span>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">Zerodha Account</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-xs text-green-400">Live · Connected</span>
-                {kiteLastUpdated && <span className="text-xs text-gray-500">Updated {new Date(kiteLastUpdated).toLocaleTimeString()}</span>}
+            <option value={10000}>10s</option>
+            <option value={15000}>15s</option>
+            <option value={30000}>30s</option>
+          </select>
+        </div>
+      </div>
+
+      {kiteLoading ? (
+        <div className="text-center py-8">
+          <div className="inline-block text-gray-400">Loading Zerodha account details...</div>
+        </div>
+      ) : kiteError ? (
+        <div className="bg-red-900/20 border border-red-600 p-6 rounded-lg">
+          <div className="text-red-300 font-semibold mb-2">Connection Error</div>
+          <div className="text-red-200 text-sm mb-3">{kiteError}</div>
+          <div className="text-xs text-gray-400">Ensure the backend at <span className="font-mono text-gray-300">{API_URL}</span> is running.</div>
+        </div>
+      ) : !kiteAccount ? (
+        <div className="bg-blue-900/20 border border-blue-600 p-6 rounded-lg text-center">
+          <div className="text-blue-300 font-semibold">Zerodha Not Connected</div>
+          <div className="text-blue-200 text-sm mt-2">Complete session setup to enable live trading</div>
+        </div>
+      ) : (
+        <>
+          {/* === Dashboard Tab === */}
+          <div className="space-y-6">
+            {/* Key Account Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
+                <div className="text-xs text-gray-500 uppercase tracking-wide">Account Equity</div>
+                <div className="text-2xl font-bold text-white mt-2">
+                  {formatCurrency(kiteAccount.margins?.equity?.net ?? 0)}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">Live Balance</div>
+              </div>
+
+              <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
+                <div className="text-xs text-gray-500 uppercase tracking-wide">Available Cash</div>
+                <div className="text-2xl font-bold text-emerald-400 mt-2">
+                  {formatCurrency(kiteAccount.margins?.equity?.available?.cash ?? 0)}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">For Trading</div>
+              </div>
+
+              <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
+                <div className="text-xs text-gray-500 uppercase tracking-wide">Holdings</div>
+                <div className="text-2xl font-bold text-blue-400 mt-2">
+                  {(kiteAccount.holdings && kiteAccount.holdings.length) || 0}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">Active Holdings</div>
+              </div>
+
+              <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
+                <div className="text-xs text-gray-500 uppercase tracking-wide">Total Orders</div>
+                <div className="text-2xl font-bold text-cyan-400 mt-2">{kiteOrders.length}</div>
+                <div className="text-xs text-gray-400 mt-1">All Transactions</div>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-gray-400">Auto-refresh</label>
-            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} className="w-4 h-4 cursor-pointer" />
-            <select value={refreshIntervalMs} onChange={(e) => setRefreshIntervalMs(Number(e.target.value))} className="bg-[#1a2332] text-xs text-gray-300 p-2 rounded border border-gray-600">
-              <option value={5000}>5s</option>
-              <option value={10000}>10s</option>
-              <option value={15000}>15s</option>
-              <option value={30000}>30s</option>
-            </select>
-          </div>
-        </div>
 
-        {kiteLoading ? (
-          <div className="text-center py-8">
-            <div className="inline-block text-gray-400">Loading Zerodha account details...</div>
-          </div>
-        ) : kiteError ? (
-          <div className="bg-red-900/20 border border-red-600 p-6 rounded-lg">
-            <div className="text-red-300 font-semibold mb-2">Connection Error</div>
-            <div className="text-red-200 text-sm mb-3">{kiteError}</div>
-            <div className="text-xs text-gray-400">Ensure the backend at <span className="font-mono text-gray-300">{API_URL}</span> is running.</div>
-          </div>
-        ) : !kiteAccount ? (
-          <div className="bg-blue-900/20 border border-blue-600 p-6 rounded-lg text-center">
-            <div className="text-blue-300 font-semibold">Zerodha Not Connected</div>
-            <div className="text-blue-200 text-sm mt-2">Complete session setup to enable live trading</div>
-          </div>
-        ) : (
-          <>
-            {/* === Dashboard Tab === */}
-            <div className="space-y-6">
-              {/* Key Account Metrics */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Account Equity</div>
-                  <div className="text-2xl font-bold text-white mt-2">
-                    {formatCurrency(kiteAccount.margins?.equity?.net ?? 0)}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">Live Balance</div>
-                </div>
-
-                <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Available Cash</div>
-                  <div className="text-2xl font-bold text-emerald-400 mt-2">
-                    {formatCurrency(kiteAccount.margins?.equity?.available?.cash ?? 0)}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">For Trading</div>
-                </div>
-
-                <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Holdings</div>
-                  <div className="text-2xl font-bold text-blue-400 mt-2">
-                    {(kiteAccount.holdings && kiteAccount.holdings.length) || 0}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">Active Holdings</div>
-                </div>
-
-                <div className="bg-[#1a2332] p-4 rounded-lg border border-gray-700">
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Total Orders</div>
-                  <div className="text-2xl font-bold text-cyan-400 mt-2">{kiteOrders.length}</div>
-                  <div className="text-xs text-gray-400 mt-1">All Transactions</div>
-                </div>
-              </div>
-
-              {/* Margins Detail */}
-              {kiteAccount.margins && kiteAccount.margins.equity && (
-                <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
-                  <h3 className="text-sm font-semibold text-gray-300 mb-4">Margin & Leverage (Equity)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <div className="text-xs text-gray-400">Net Equity</div>
-                      <div className="text-xl font-bold text-white mt-1">
-                        {formatCurrency(kiteAccount.margins.equity.net ?? 0)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">Available Cash</div>
-                      <div className="text-xl font-bold text-emerald-400 mt-1">
-                        {formatCurrency(kiteAccount.margins.equity.available?.cash ?? 0)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">Used Margin</div>
-                      <div className="text-xl font-bold text-orange-400 mt-1">
-                        {formatCurrency(kiteAccount.margins.equity.utilised?.debits ?? 0)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Profile Info */}
-              {kiteAccount.profile && (
-                <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
-                  <h3 className="text-sm font-semibold text-gray-300 mb-4">Account Info</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="text-xs text-gray-400">Account Holder</div>
-                      <div className="text-lg font-semibold text-white mt-1">
-                        {kiteAccount.profile.user_name || kiteAccount.profile.user_shortname || '—'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">User ID</div>
-                      <div className="text-lg font-mono text-gray-300 mt-1">{kiteAccount.profile.user_id || '—'}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">Email</div>
-                      <div className="text-lg font-semibold text-white mt-1">
-                        {kiteAccount.profile.email || '—'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-400">Broker</div>
-                      <div className="text-lg font-semibold text-white mt-1">
-                        {kiteAccount.profile.broker || 'Zerodha'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Open Positions */}
-              {kiteAccount.positions && (kiteAccount.positions.net || kiteAccount.positions.day || Array.isArray(kiteAccount.positions)) && (
-                <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
-                  <h3 className="text-sm font-semibold text-gray-300 mb-4">Open Positions</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-600 text-gray-400 text-xs">
-                          <th className="px-3 py-2 text-left">Symbol</th>
-                          <th className="px-3 py-2 text-right">Qty</th>
-                          <th className="px-3 py-2 text-right">Avg Price</th>
-                          <th className="px-3 py-2 text-right">LTP</th>
-                          <th className="px-3 py-2 text-right">Market Value</th>
-                          <th className="px-3 py-2 text-right">P&L</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(() => {
-                          const rawPos = Array.isArray(kiteAccount.positions)
-                            ? kiteAccount.positions
-                            : (kiteAccount.positions.net || kiteAccount.positions.day || []);
-                          if (rawPos.length === 0) {
-                            return <tr><td colSpan="6" className="text-center py-4 text-gray-400">No open positions</td></tr>;
-                          }
-                          return rawPos.map((p, idx) => {
-                            const sym = (p.tradingsymbol || p.trading_symbol || p.symbol || '').toUpperCase() || '—';
-                            const qty = Number(p.quantity || p.qty || 0);
-                            const avg = Number(p.average_price || p.avg_price || 0);
-                            const ltp = Number(marketPrices[sym] ?? p.last_price ?? p.ltp ?? 0);
-                            const mktVal = qty * (ltp || avg);
-                            const pnl = (ltp - avg) * qty;
-                            return (
-                              <tr key={sym + idx} className="border-b border-gray-700 text-gray-300">
-                                <td className="px-3 py-2 font-semibold text-white">{sym}</td>
-                                <td className="px-3 py-2 text-right">{formatNumber(qty)}</td>
-                                <td className="px-3 py-2 text-right">{formatCurrency(avg)}</td>
-                                <td className="px-3 py-2 text-right text-white font-semibold">{ltp ? formatCurrency(ltp) : '—'}</td>
-                                <td className="px-3 py-2 text-right">{formatCurrency(mktVal)}</td>
-                                <td className={`px-3 py-2 text-right font-semibold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                  {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
-                                </td>
-                              </tr>
-                            );
-                          });
-                        })()}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Quick Order Form */}
+            {/* Margins Detail */}
+            {kiteAccount.margins && kiteAccount.margins.equity && (
               <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
-                <h3 className="text-sm font-semibold text-gray-300 mb-4">Place New Order</h3>
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-                  <div className="md:col-span-2">
-                    <label className="text-xs text-gray-400 uppercase tracking-wide">Symbol</label>
-                    <div className="mt-2">
-                      <SearchBar onSelect={(sym) => setOrderSymbol(sym)} onSearch={() => { }} />
-                      <div className="text-xs text-gray-500 mt-2">Selected: <span className="font-mono text-gray-300">{orderSymbol || 'None'}</span></div>
+                <h3 className="text-sm font-semibold text-gray-300 mb-4">Margin & Leverage (Equity)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-xs text-gray-400">Net Equity</div>
+                    <div className="text-xl font-bold text-white mt-1">
+                      {formatCurrency(kiteAccount.margins.equity.net ?? 0)}
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 uppercase tracking-wide">Quantity</label>
-                    <input type="number" min="1" value={orderQty} onChange={e => setOrderQty(Number(e.target.value))} className="w-full mt-2 px-3 py-2 bg-[#0f1724] border border-gray-600 rounded text-white text-sm" />
+                    <div className="text-xs text-gray-400">Available Cash</div>
+                    <div className="text-xl font-bold text-emerald-400 mt-1">
+                      {formatCurrency(kiteAccount.margins.equity.available?.cash ?? 0)}
+                    </div>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 uppercase tracking-wide">Type</label>
-                    <select value={orderSide} onChange={e => setOrderSide(e.target.value)} className="w-full mt-2 px-3 py-2 bg-[#0f1724] border border-gray-600 rounded text-white text-sm">
-                      <option value="BUY">BUY</option>
-                      <option value="SELL">SELL</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 uppercase tracking-wide">Exchange</label>
-                    <select value={orderExchange} onChange={e => setOrderExchange(e.target.value)} className="w-full mt-2 px-3 py-2 bg-[#0f1724] border border-gray-600 rounded text-white text-sm">
-                      <option>NSE</option>
-                      <option>BSE</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 uppercase tracking-wide">Product</label>
-                    <select value={orderProduct} onChange={e => setOrderProduct(e.target.value)} className="w-full mt-2 px-3 py-2 bg-[#0f1724] border border-gray-600 rounded text-white text-sm">
-                      <option value="MIS">MIS</option>
-                      <option value="CNC">CNC</option>
-                    </select>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={handleInitiateOrder} className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm font-semibold transition" disabled={kiteLoading || !kiteAccount}>
-                      Place Order
-                    </button>
-                    <button onClick={() => { setOrderSymbol(''); setOrderQty(1); setOrderSide('BUY'); }} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white text-sm transition">
-                      Reset
-                    </button>
+                    <div className="text-xs text-gray-400">Used Margin</div>
+                    <div className="text-xl font-bold text-orange-400 mt-1">
+                      {formatCurrency(kiteAccount.margins.equity.utilised?.debits ?? 0)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* === Transactions Section (Two Tabs) === */}
-            <div className="mt-8 space-y-4">
-              <div className="flex gap-2 border-b border-gray-700">
-                <button
-                  onClick={() => setActiveZerodhaTab('successful')}
-                  className={`px-4 py-3 text-sm font-semibold border-b-2 transition ${activeZerodhaTab === 'successful' ? 'text-emerald-400 border-emerald-400' : 'text-gray-400 border-transparent hover:text-gray-300'}`}
-                >
-                  ✓ Successful ({zerodhaSuccessfulOrders.length})
-                </button>
-                <button
-                  onClick={() => setActiveZerodhaTab('failed')}
-                  className={`px-4 py-3 text-sm font-semibold border-b-2 transition ${activeZerodhaTab === 'failed' ? 'text-red-400 border-red-400' : 'text-gray-400 border-transparent hover:text-gray-300'}`}
-                >
-                  ✗ Failed ({zerodhaFailedOrders.length})
-                </button>
-              </div>
-
-              {/* Successful Orders Tab */}
-              {activeZerodhaTab === 'successful' && (
-                <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
-                  <h3 className="text-sm font-semibold text-emerald-400 mb-4">Successful Transactions (Zerodha Live)</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-600 text-gray-400 text-xs">
-                          <th className="px-3 py-2 text-left">Time</th>
-                          <th className="px-3 py-2">Symbol</th>
-                          <th className="px-3 py-2">Side</th>
-                          <th className="px-3 py-2 text-right">Qty</th>
-                          <th className="px-3 py-2 text-right">Price</th>
-                          <th className="px-3 py-2 text-right">Amount</th>
-                          <th className="px-3 py-2 text-right">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {zerodhaSuccessfulOrders.length === 0 ? (
-                          <tr><td colSpan="7" className="text-center py-6 text-gray-500">No successful orders yet</td></tr>
-                        ) : zerodhaSuccessfulOrders.slice(0, 50).map((o, idx) => (
-                          <tr key={(o.id || o.order_id || idx) + '-' + idx} className="border-b border-gray-700 text-gray-300">
-                            <td className="px-3 py-2 text-xs">{o.ts ? new Date(o.ts).toLocaleString() : (o.order_timestamp ? new Date(o.order_timestamp).toLocaleString() : '—')}</td>
-                            <td className="px-3 py-2 font-semibold text-white">{o.symbol || o.tradingsymbol || '—'}</td>
-                            <td className={`px-3 py-2 font-semibold ${String(o.side || o.transaction_type || '').toLowerCase().includes('sell') ? 'text-red-400' : 'text-emerald-400'}`}>
-                              {o.side || o.transaction_type || '—'}
-                            </td>
-                            <td className="px-3 py-2 text-right">{formatNumber(o.qty || o.quantity || o.filled_quantity || 0)}</td>
-                            <td className="px-3 py-2 text-right">{o.price ? formatCurrency(o.price) : (o.average_price ? formatCurrency(o.average_price) : '—')}</td>
-                            <td className="px-3 py-2 text-right">{o.amount ? formatCurrency(o.amount) : '—'}</td>
-                            <td className="px-3 py-2 text-right text-xs text-emerald-300">{o.status || 'FILLED'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Failed Orders Tab */}
-              {activeZerodhaTab === 'failed' && (
-                <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
-                  <h3 className="text-sm font-semibold text-red-400 mb-4">Failed / Rejected Transactions (Zerodha Live)</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-600 text-gray-400 text-xs">
-                          <th className="px-3 py-2 text-left">Time</th>
-                          <th className="px-3 py-2">Symbol</th>
-                          <th className="px-3 py-2">Reason</th>
-                          <th className="px-3 py-2 text-right">Qty</th>
-                          <th className="px-3 py-2 text-right">Price</th>
-                          <th className="px-3 py-2 text-right">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {zerodhaFailedOrders.length === 0 ? (
-                          <tr><td colSpan="6" className="text-center py-6 text-gray-500">No failed orders</td></tr>
-                        ) : zerodhaFailedOrders.slice(0, 50).map((o, idx) => (
-                          <tr key={(o.id || o.order_id || idx) + '-' + idx} className="border-b border-gray-700 text-gray-300">
-                            <td className="px-3 py-2 text-xs">{o.ts ? new Date(o.ts).toLocaleString() : (o.order_timestamp ? new Date(o.order_timestamp).toLocaleString() : '—')}</td>
-                            <td className="px-3 py-2 font-semibold text-white">{o.symbol || o.tradingsymbol || '—'}</td>
-                            <td className="px-3 py-2 text-xs text-red-300">{o.error || o.rejection_reason || o.message || 'Unknown error'}</td>
-                            <td className="px-3 py-2 text-right">{formatNumber(o.qty || o.quantity || 0)}</td>
-                            <td className="px-3 py-2 text-right">{o.price ? formatCurrency(o.price) : '—'}</td>
-                            <td className="px-3 py-2 text-right text-xs text-red-300">{o.status || 'REJECTED'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* === PAPER TRADING SECTION (COMPLETELY SEPARATE) === */}
-      <div className="bg-gradient-to-br from-[#0f1527] to-[#0a0f1f] p-8 rounded-2xl border border-cyan-500/30 shadow-2xl">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-cyan-600/20 border border-cyan-500 flex items-center justify-center">
-            <span className="text-cyan-400 font-bold">P</span>
-          </div>
-          <div>
-            {/* Very Small Mobile */}
-            <h2 className="block sm:hidden text-lg font-bold text-white whitespace-nowrap">Trading</h2>
-            {/* Small Mobile/Tablet */}
-            <h2 className="hidden sm:block md:hidden text-xl font-bold text-white whitespace-nowrap">Paper Trading</h2>
-            {/* Desktop */}
-            <h2 className="hidden md:block text-2xl font-bold text-white whitespace-nowrap">Paper Trading Account</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="w-2 h-2 bg-cyan-500 rounded-full" />
-              <span className="text-xs text-cyan-400">Demo · Paper</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card title="Available Balance" value={balance} color="#00bcd4" prefix="$" />
-          <Card title="Trader Value" value={investedValue} color="#1e88e5" prefix="$" />
-          <Card
-            title="Today's P&L"
-            value={todaysPnL}
-            color={todaysPnL >= 0 ? '#00e676' : '#ff5252'}
-            prefix={todaysPnL >= 0 ? '+$' : '-$'}
-            suffix={` (${pnlPercent}%)`}
-          />
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <ChartCard title="Portfolio Value Over Time">
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={portfolioHistory}>
-                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
-                <XAxis dataKey="time" stroke="#6b7280" fontSize={12} />
-                <YAxis stroke="#6b7280" fontSize={12} />
-                <Tooltip contentStyle={{ backgroundColor: '#0b1526', border: '1px solid #00bcd4', color: '#fff' }} formatter={(v) => [`$${v.toFixed(2)}`, 'Value']} />
-                <Line type="monotone" dataKey="value" stroke="#00bcd4" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Cash vs Invested">
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={40}>
-                  {pieData.map((_, i) => (<Cell key={i} fill={COLORS[i]} />))}
-                </Pie>
-                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Profit Breakdown">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={profitData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="name" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
-                <Bar dataKey="value" barSize={40}>
-                  {profitData.map((_, i) => (<Cell key={i} fill={COLORS[i + 2]} />))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
-      </div>
-
-      {/* --- Confirm Order Modal --- */}
-      {showConfirm && confirmPayload && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => { if (!placingOrder) { setShowConfirm(false); setConfirmPayload(null); } }} />
-          <div className="relative bg-[#071022] p-6 rounded shadow-lg w-full max-w-md border border-cyan-800">
-            <h4 className="text-white font-semibold mb-2">Confirm Market Order</h4>
-            <div className="text-sm text-gray-300 mb-3">{confirmPayload.tradingsymbol} — {confirmPayload.transaction_type} {confirmPayload.quantity} @ {confirmPayload.estPrice ? formatCurrency(confirmPayload.estPrice) : 'Market'}</div>
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-xs text-gray-400">Estimated Cost</div>
-              <div className="text-white font-semibold">{formatCurrency(confirmPayload.estimatedCost)}</div>
-            </div>
-            {orderResult && (
-              <div className={`p-3 rounded mb-3 ${orderResult.ok ? 'bg-emerald-900/30 border border-emerald-700' : 'bg-red-900/20 border border-red-700'}`}>
-                <div className="text-sm text-white">{orderResult.msg}</div>
               </div>
             )}
-            <div className="flex gap-2 justify-end">
-              <button className="px-4 py-2 bg-gray-700 rounded text-white" onClick={() => { if (!placingOrder) { setShowConfirm(false); setConfirmPayload(null); } }}>Cancel</button>
-              <button className="px-4 py-2 bg-emerald-600 rounded text-white" onClick={handlePlaceOrder} disabled={placingOrder}>{placingOrder ? 'Placing...' : 'Confirm & Place'}</button>
+
+            {/* Profile Info */}
+            {kiteAccount.profile && (
+              <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-300 mb-4">Account Info</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-xs text-gray-400">Account Holder</div>
+                    <div className="text-lg font-semibold text-white mt-1">
+                      {kiteAccount.profile.user_name || kiteAccount.profile.user_shortname || '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400">User ID</div>
+                    <div className="text-lg font-mono text-gray-300 mt-1">{kiteAccount.profile.user_id || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400">Email</div>
+                    <div className="text-lg font-semibold text-white mt-1">
+                      {kiteAccount.profile.email || '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400">Broker</div>
+                    <div className="text-lg font-semibold text-white mt-1">
+                      {kiteAccount.profile.broker || 'Zerodha'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Open Positions */}
+            {kiteAccount.positions && (kiteAccount.positions.net || kiteAccount.positions.day || Array.isArray(kiteAccount.positions)) && (
+              <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-300 mb-4">Open Positions</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-600 text-gray-400 text-xs">
+                        <th className="px-3 py-2 text-left">Symbol</th>
+                        <th className="px-3 py-2 text-right">Qty</th>
+                        <th className="px-3 py-2 text-right">Avg Price</th>
+                        <th className="px-3 py-2 text-right">LTP</th>
+                        <th className="px-3 py-2 text-right">Market Value</th>
+                        <th className="px-3 py-2 text-right">P&L</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const rawPos = Array.isArray(kiteAccount.positions)
+                          ? kiteAccount.positions
+                          : (kiteAccount.positions.net || kiteAccount.positions.day || []);
+                        if (rawPos.length === 0) {
+                          return <tr><td colSpan="6" className="text-center py-4 text-gray-400">No open positions</td></tr>;
+                        }
+                        return rawPos.map((p, idx) => {
+                          const sym = (p.tradingsymbol || p.trading_symbol || p.symbol || '').toUpperCase() || '—';
+                          const qty = Number(p.quantity || p.qty || 0);
+                          const avg = Number(p.average_price || p.avg_price || 0);
+                          const ltp = Number(marketPrices[sym] ?? p.last_price ?? p.ltp ?? 0);
+                          const mktVal = qty * (ltp || avg);
+                          const pnl = (ltp - avg) * qty;
+                          return (
+                            <tr key={sym + idx} className="border-b border-gray-700 text-gray-300">
+                              <td className="px-3 py-2 font-semibold text-white">{sym}</td>
+                              <td className="px-3 py-2 text-right">{formatNumber(qty)}</td>
+                              <td className="px-3 py-2 text-right">{formatCurrency(avg)}</td>
+                              <td className="px-3 py-2 text-right text-white font-semibold">{ltp ? formatCurrency(ltp) : '—'}</td>
+                              <td className="px-3 py-2 text-right">{formatCurrency(mktVal)}</td>
+                              <td className={`px-3 py-2 text-right font-semibold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Order Form */}
+            <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-300 mb-4">Place New Order</h3>
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                <div className="md:col-span-2">
+                  <label className="text-xs text-gray-400 uppercase tracking-wide">Symbol</label>
+                  <div className="mt-2">
+                    <SearchBar onSelect={(sym) => setOrderSymbol(sym)} onSearch={() => { }} />
+                    <div className="text-xs text-gray-500 mt-2">Selected: <span className="font-mono text-gray-300">{orderSymbol || 'None'}</span></div>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wide">Quantity</label>
+                  <input type="number" min="1" value={orderQty} onChange={e => setOrderQty(Number(e.target.value))} className="w-full mt-2 px-3 py-2 bg-[#0f1724] border border-gray-600 rounded text-white text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wide">Type</label>
+                  <select value={orderSide} onChange={e => setOrderSide(e.target.value)} className="w-full mt-2 px-3 py-2 bg-[#0f1724] border border-gray-600 rounded text-white text-sm">
+                    <option value="BUY">BUY</option>
+                    <option value="SELL">SELL</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wide">Exchange</label>
+                  <select value={orderExchange} onChange={e => setOrderExchange(e.target.value)} className="w-full mt-2 px-3 py-2 bg-[#0f1724] border border-gray-600 rounded text-white text-sm">
+                    <option>NSE</option>
+                    <option>BSE</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wide">Product</label>
+                  <select value={orderProduct} onChange={e => setOrderProduct(e.target.value)} className="w-full mt-2 px-3 py-2 bg-[#0f1724] border border-gray-600 rounded text-white text-sm">
+                    <option value="MIS">MIS</option>
+                    <option value="CNC">CNC</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleInitiateOrder} className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm font-semibold transition" disabled={kiteLoading || !kiteAccount}>
+                    Place Order
+                  </button>
+                  <button onClick={() => { setOrderSymbol(''); setOrderQty(1); setOrderSide('BUY'); }} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white text-sm transition">
+                    Reset
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+
+          {/* === Transactions Section (Two Tabs) === */}
+          <div className="mt-8 space-y-4">
+            <div className="flex gap-2 border-b border-gray-700">
+              <button
+                onClick={() => setActiveZerodhaTab('successful')}
+                className={`px-4 py-3 text-sm font-semibold border-b-2 transition ${activeZerodhaTab === 'successful' ? 'text-emerald-400 border-emerald-400' : 'text-gray-400 border-transparent hover:text-gray-300'}`}
+              >
+                ✓ Successful ({zerodhaSuccessfulOrders.length})
+              </button>
+              <button
+                onClick={() => setActiveZerodhaTab('failed')}
+                className={`px-4 py-3 text-sm font-semibold border-b-2 transition ${activeZerodhaTab === 'failed' ? 'text-red-400 border-red-400' : 'text-gray-400 border-transparent hover:text-gray-300'}`}
+              >
+                ✗ Failed ({zerodhaFailedOrders.length})
+              </button>
+            </div>
+
+            {/* Successful Orders Tab */}
+            {activeZerodhaTab === 'successful' && (
+              <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
+                <h3 className="text-sm font-semibold text-emerald-400 mb-4">Successful Transactions (Zerodha Live)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-600 text-gray-400 text-xs">
+                        <th className="px-3 py-2 text-left">Time</th>
+                        <th className="px-3 py-2">Symbol</th>
+                        <th className="px-3 py-2">Side</th>
+                        <th className="px-3 py-2 text-right">Qty</th>
+                        <th className="px-3 py-2 text-right">Price</th>
+                        <th className="px-3 py-2 text-right">Amount</th>
+                        <th className="px-3 py-2 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {zerodhaSuccessfulOrders.length === 0 ? (
+                        <tr><td colSpan="7" className="text-center py-6 text-gray-500">No successful orders yet</td></tr>
+                      ) : zerodhaSuccessfulOrders.slice(0, 50).map((o, idx) => (
+                        <tr key={(o.id || o.order_id || idx) + '-' + idx} className="border-b border-gray-700 text-gray-300">
+                          <td className="px-3 py-2 text-xs">{o.ts ? new Date(o.ts).toLocaleString() : (o.order_timestamp ? new Date(o.order_timestamp).toLocaleString() : '—')}</td>
+                          <td className="px-3 py-2 font-semibold text-white">{o.symbol || o.tradingsymbol || '—'}</td>
+                          <td className={`px-3 py-2 font-semibold ${String(o.side || o.transaction_type || '').toLowerCase().includes('sell') ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {o.side || o.transaction_type || '—'}
+                          </td>
+                          <td className="px-3 py-2 text-right">{formatNumber(o.qty || o.quantity || o.filled_quantity || 0)}</td>
+                          <td className="px-3 py-2 text-right">{o.price ? formatCurrency(o.price) : (o.average_price ? formatCurrency(o.average_price) : '—')}</td>
+                          <td className="px-3 py-2 text-right">{o.amount ? formatCurrency(o.amount) : '—'}</td>
+                          <td className="px-3 py-2 text-right text-xs text-emerald-300">{o.status || 'FILLED'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Failed Orders Tab */}
+            {activeZerodhaTab === 'failed' && (
+              <div className="bg-[#1a2332] p-6 rounded-lg border border-gray-700">
+                <h3 className="text-sm font-semibold text-red-400 mb-4">Failed / Rejected Transactions (Zerodha Live)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-600 text-gray-400 text-xs">
+                        <th className="px-3 py-2 text-left">Time</th>
+                        <th className="px-3 py-2">Symbol</th>
+                        <th className="px-3 py-2">Reason</th>
+                        <th className="px-3 py-2 text-right">Qty</th>
+                        <th className="px-3 py-2 text-right">Price</th>
+                        <th className="px-3 py-2 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {zerodhaFailedOrders.length === 0 ? (
+                        <tr><td colSpan="6" className="text-center py-6 text-gray-500">No failed orders</td></tr>
+                      ) : zerodhaFailedOrders.slice(0, 50).map((o, idx) => (
+                        <tr key={(o.id || o.order_id || idx) + '-' + idx} className="border-b border-gray-700 text-gray-300">
+                          <td className="px-3 py-2 text-xs">{o.ts ? new Date(o.ts).toLocaleString() : (o.order_timestamp ? new Date(o.order_timestamp).toLocaleString() : '—')}</td>
+                          <td className="px-3 py-2 font-semibold text-white">{o.symbol || o.tradingsymbol || '—'}</td>
+                          <td className="px-3 py-2 text-xs text-red-300">{o.error || o.rejection_reason || o.message || 'Unknown error'}</td>
+                          <td className="px-3 py-2 text-right">{formatNumber(o.qty || o.quantity || 0)}</td>
+                          <td className="px-3 py-2 text-right">{o.price ? formatCurrency(o.price) : '—'}</td>
+                          <td className="px-3 py-2 text-right text-xs text-red-300">{o.status || 'REJECTED'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
+    </div>
 
-      {/* === Paper Trading Transaction History === */}
-      <div className="bg-[#111526] p-6 rounded-xl border border-cyan-800">
-        {/* Very Small Mobile */}
-        <h3 className="block sm:hidden text-base font-semibold text-white mb-3 whitespace-nowrap">History</h3>
-        {/* Small Mobile/Tablet */}
-        <h3 className="hidden sm:block md:hidden text-lg font-semibold text-white mb-3 whitespace-nowrap">Trading History</h3>
-        {/* Desktop */}
-        <h3 className="hidden md:block text-lg font-semibold text-white mb-3 whitespace-nowrap">Paper Trading History</h3>
-        <div className="overflow-x-auto max-h-64">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-gray-400 border-b border-[#1e293b] text-xs">
-                <th className="px-2 py-1">Date</th>
-                <th className="px-2 py-1">Type</th>
-                <th className="px-2 py-1">Symbol</th>
-                <th className="px-2 py-1 text-right">Qty</th>
-                <th className="px-2 py-1 text-right">Price</th>
-                <th className="px-2 py-1 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center text-gray-500 py-3">
-                    No transactions yet.
-                  </td>
-                </tr>
-              ) : (
-                orders.map((t) => (
-                  <tr
-                    key={t.id}
-                    className={`border-b border-[#1e293b] ${t.side === 'BUY'
-                      ? 'text-green-400'
-                      : t.side === 'SELL'
-                        ? 'text-red-400'
-                        : 'text-cyan-300'
-                      }`}
-                  >
-                    <td className="px-2 py-1">{new Date(t.ts).toLocaleString()}</td>
-                    <td className="px-2 py-1 font-semibold">{t.side}</td>
-                    <td className="px-2 py-1">{t.symbol}</td>
-                    <td className="px-2 py-1 text-right">{Number(t.qty).toFixed(8)}</td>
-                    <td className="px-2 py-1 text-right">
-                      ₹{Number(t.price).toFixed(2)}
-                    </td>
-                    <td className="px-2 py-1 text-right">
-                      {t.side === 'BUY' ? '-' : '+'}₹
-                      {Number(t.amount).toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                      })}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* === PAPER TRADING SECTION (COMPLETELY SEPARATE) === */ }
+  <div className="bg-gradient-to-br from-[#0f1527] to-[#0a0f1f] p-8 rounded-2xl border border-cyan-500/30 shadow-2xl">
+    <div className="flex items-center gap-3 mb-6">
+      <div className="w-10 h-10 rounded-full bg-cyan-600/20 border border-cyan-500 flex items-center justify-center">
+        <span className="text-cyan-400 font-bold">P</span>
       </div>
-
-      {/* === Action Buttons === */}
-      <div className="flex gap-4">
-        <button
-          onClick={handleAddFunds}
-          className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-500 rounded-xl text-white font-medium hover:opacity-90"
-        >
-          Add $10,000
-        </button>
-
-        <button
-          onClick={handleResetAccount}
-          className="px-6 py-3 bg-red-500/20 text-red-400 rounded-xl font-medium hover:bg-red-500/30"
-        >
-          Reset Account
-        </button>
+      <div>
+        {/* Very Small Mobile */}
+        <h2 className="block sm:hidden text-lg font-bold text-white whitespace-nowrap">Trading</h2>
+        {/* Small Mobile/Tablet */}
+        <h2 className="hidden sm:block md:hidden text-xl font-bold text-white whitespace-nowrap">Paper Trading</h2>
+        {/* Desktop */}
+        <h2 className="hidden md:block text-2xl font-bold text-white whitespace-nowrap">Paper Trading Account</h2>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="w-2 h-2 bg-cyan-500 rounded-full" />
+          <span className="text-xs text-cyan-400">Demo · Paper</span>
+        </div>
       </div>
     </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Card title="Available Balance" value={balance} color="#00bcd4" prefix="$" />
+      <Card title="Trader Value" value={investedValue} color="#1e88e5" prefix="$" />
+      <Card
+        title="Today's P&L"
+        value={todaysPnL}
+        color={todaysPnL >= 0 ? '#00e676' : '#ff5252'}
+        prefix={todaysPnL >= 0 ? '+$' : '-$'}
+        suffix={` (${pnlPercent}%)`}
+      />
+    </div>
+
+    {/* Charts */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+      <ChartCard title="Portfolio Value Over Time">
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={portfolioHistory}>
+            <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+            <XAxis dataKey="time" stroke="#6b7280" fontSize={12} />
+            <YAxis stroke="#6b7280" fontSize={12} />
+            <Tooltip contentStyle={{ backgroundColor: '#0b1526', border: '1px solid #00bcd4', color: '#fff' }} formatter={(v) => [`$${v.toFixed(2)}`, 'Value']} />
+            <Line type="monotone" dataKey="value" stroke="#00bcd4" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      <ChartCard title="Cash vs Invested">
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={40}>
+              {pieData.map((_, i) => (<Cell key={i} fill={COLORS[i]} />))}
+            </Pie>
+            <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+          </PieChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      <ChartCard title="Profit Breakdown">
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={profitData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+            <XAxis dataKey="name" stroke="#6b7280" />
+            <YAxis stroke="#6b7280" />
+            <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+            <Bar dataKey="value" barSize={40}>
+              {profitData.map((_, i) => (<Cell key={i} fill={COLORS[i + 2]} />))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+    </div>
+  </div>
+
+  {/* --- Confirm Order Modal --- */ }
+  {
+    showConfirm && confirmPayload && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/60" onClick={() => { if (!placingOrder) { setShowConfirm(false); setConfirmPayload(null); } }} />
+        <div className="relative bg-[#071022] p-6 rounded shadow-lg w-full max-w-md border border-cyan-800">
+          <h4 className="text-white font-semibold mb-2">Confirm Market Order</h4>
+          <div className="text-sm text-gray-300 mb-3">{confirmPayload.tradingsymbol} — {confirmPayload.transaction_type} {confirmPayload.quantity} @ {confirmPayload.estPrice ? formatCurrency(confirmPayload.estPrice) : 'Market'}</div>
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-xs text-gray-400">Estimated Cost</div>
+            <div className="text-white font-semibold">{formatCurrency(confirmPayload.estimatedCost)}</div>
+          </div>
+          {orderResult && (
+            <div className={`p-3 rounded mb-3 ${orderResult.ok ? 'bg-emerald-900/30 border border-emerald-700' : 'bg-red-900/20 border border-red-700'}`}>
+              <div className="text-sm text-white">{orderResult.msg}</div>
+            </div>
+          )}
+          <div className="flex gap-2 justify-end">
+            <button className="px-4 py-2 bg-gray-700 rounded text-white" onClick={() => { if (!placingOrder) { setShowConfirm(false); setConfirmPayload(null); } }}>Cancel</button>
+            <button className="px-4 py-2 bg-emerald-600 rounded text-white" onClick={handlePlaceOrder} disabled={placingOrder}>{placingOrder ? 'Placing...' : 'Confirm & Place'}</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  {/* === Paper Trading Transaction History === */ }
+  <div className="bg-[#111526] p-6 rounded-xl border border-cyan-800">
+    {/* Very Small Mobile */}
+    <h3 className="block sm:hidden text-base font-semibold text-white mb-3 whitespace-nowrap">History</h3>
+    {/* Small Mobile/Tablet */}
+    <h3 className="hidden sm:block md:hidden text-lg font-semibold text-white mb-3 whitespace-nowrap">Trading History</h3>
+    {/* Desktop */}
+    <h3 className="hidden md:block text-lg font-semibold text-white mb-3 whitespace-nowrap">Paper Trading History</h3>
+    <div className="overflow-x-auto max-h-64">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="text-gray-400 border-b border-[#1e293b] text-xs">
+            <th className="px-2 py-1">Date</th>
+            <th className="px-2 py-1">Type</th>
+            <th className="px-2 py-1">Symbol</th>
+            <th className="px-2 py-1 text-right">Qty</th>
+            <th className="px-2 py-1 text-right">Price</th>
+            <th className="px-2 py-1 text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.length === 0 ? (
+            <tr>
+              <td colSpan="6" className="text-center text-gray-500 py-3">
+                No transactions yet.
+              </td>
+            </tr>
+          ) : (
+            orders.map((t) => (
+              <tr
+                key={t.id}
+                className={`border-b border-[#1e293b] ${t.side === 'BUY'
+                  ? 'text-green-400'
+                  : t.side === 'SELL'
+                    ? 'text-red-400'
+                    : 'text-cyan-300'
+                  }`}
+              >
+                <td className="px-2 py-1">{new Date(t.ts).toLocaleString()}</td>
+                <td className="px-2 py-1 font-semibold">{t.side}</td>
+                <td className="px-2 py-1">{t.symbol}</td>
+                <td className="px-2 py-1 text-right">{Number(t.qty).toFixed(8)}</td>
+                <td className="px-2 py-1 text-right">
+                  ₹{Number(t.price).toFixed(2)}
+                </td>
+                <td className="px-2 py-1 text-right">
+                  {t.side === 'BUY' ? '-' : '+'}₹
+                  {Number(t.amount).toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                  })}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {/* === Action Buttons === */ }
+  <div className="flex gap-4">
+    <button
+      onClick={handleAddFunds}
+      className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-500 rounded-xl text-white font-medium hover:opacity-90"
+    >
+      Add $10,000
+    </button>
+
+    <button
+      onClick={handleResetAccount}
+      className="px-6 py-3 bg-red-500/20 text-red-400 rounded-xl font-medium hover:bg-red-500/30"
+    >
+      Reset Account
+    </button>
+  </div>
+    </div >
   );
 }
 

@@ -15,7 +15,6 @@ const router = express.Router();
 console.log('[aiAnalysis] Router initialized');
 
 // Initialize Gemini (guard if key missing)
-// Initialize Gemini (guard if key missing)
 const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDDmsSvwFfqN36Cz4vvw_uOwOzvYOKnXis';
 let genAI = null;
 if (GEMINI_KEY) {
@@ -123,11 +122,18 @@ Return as plain text. If no action, say "no action".
 // POST /api/ai/news-analysis (Structured JSON for NewsAnalysisPage)
 router.post('/news-analysis', async (req, res) => {
   try {
+    console.log('[news-analysis] Request received');
     const { news = [] } = req.body;
-    if (!genAI) throw new Error('Gemini not initialized');
+
+    if (!genAI) {
+      console.error('[news-analysis] Gemini not initialized');
+      throw new Error('Gemini not initialized');
+    }
 
     // Limit to top 15 items to fit context
     const analysisData = news.slice(0, 15);
+    console.log(`[news-analysis] Analyzing ${analysisData.length} news items`);
+
     if (analysisData.length === 0) {
       return res.json({
         marketSentiment: "No Data",
@@ -141,41 +147,59 @@ router.post('/news-analysis', async (req, res) => {
       `[${new Date((item.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString()}] ${item.headline}: ${item.summary}`
     ).join('\n\n');
 
-    const systemPrompt = `You are a world-class Quantitative Financial Analyst. Analyze the following latest market news and provide a structured, professional, and actionable analysis. Focus on real economic drivers and market impact. The response must be professional and use formal financial language.`;
+    const prompt = `You are a world-class Quantitative Financial Analyst. Analyze the following latest market news and provide a structured analysis in JSON format.
 
-    const userQuery = `Analyze the following news items and provide the output strictly in the requested JSON schema. The analysis must be based ONLY on the provided text, focusing on the overall sentiment, key drivers, and a professional recommendation.\n\nNEWS CONTEXT:\n${newsContext}`;
+NEWS CONTEXT:
+${newsContext}
 
-    const schema = {
-      type: "OBJECT",
-      properties: {
-        marketSentiment: { type: "STRING", description: "Bullish, Bearish, or Neutral" },
-        keyFactors: { type: "ARRAY", items: { type: "STRING" } },
-        recommendation: { type: "STRING" },
-        confidenceScore: { type: "NUMBER" }
-      },
-      required: ["marketSentiment", "keyFactors", "recommendation", "confidenceScore"]
-    };
+Provide your analysis in the following JSON format:
+{
+  "marketSentiment": "Bullish, Bearish, or Neutral",
+  "keyFactors": ["factor 1", "factor 2", "factor 3"],
+  "recommendation": "Professional recommendation based on the news",
+  "confidenceScore": 0.75
+}
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash", // Use a stable model
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: schema
-      }
-    });
+Focus on real economic drivers and market impact. Be professional and use formal financial language.`;
 
-    const result = await model.generateContent([systemPrompt, userQuery]);
-    const text = result.response.text();
-    const json = JSON.parse(text);
+    console.log('[news-analysis] Calling Gemini API...');
+
+    // Use gemini-pro which is stable and widely available
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    console.log('[news-analysis] Gemini response received');
+
+    // Try to extract JSON from the response
+    let json;
+    try {
+      // Remove markdown code blocks if present
+      const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      json = JSON.parse(cleanText);
+    } catch (parseError) {
+      console.error('[news-analysis] JSON parse error:', parseError);
+      console.log('[news-analysis] Raw text:', text.substring(0, 200));
+
+      // Fallback: create a structured response from the text
+      json = {
+        marketSentiment: "Neutral",
+        keyFactors: ["Analysis completed but formatting issue occurred"],
+        recommendation: text.substring(0, 500),
+        confidenceScore: 0.5
+      };
+    }
 
     res.json(json);
 
   } catch (error) {
-    console.error('News Analysis Error:', error);
+    console.error('[news-analysis] Error:', error.message);
+    console.error('[news-analysis] Stack:', error.stack);
     res.status(500).json({
       marketSentiment: "Analysis Error",
       keyFactors: ["Server Processing Failure"],
-      recommendation: "The AI model encountered a processing error on the server.",
+      recommendation: `Backend Error: ${error.message}. Please check if Gemini API is accessible.`,
       confidenceScore: 0,
       details: error.message
     });
@@ -267,102 +291,6 @@ Return plain text or JSON.
   } catch (err) {
     console.error('Global advice error:', err);
     res.status(500).json({ error: 'Failed to generate global advice', details: err.message });
-  }
-});
-
-// ===== N8N PROXY ENDPOINTS (FOR LOCAL n8n WORKFLOWS) =====
-
-// Robust parser for n8n outputs: handles arrays with .output containing fenced JSON
-function parseN8nResponseBody(data) {
-  try {
-    if (!data) return null;
-    // n8n often returns [{ output: "```json\n{...}\n```"}]
-    if (Array.isArray(data) && data.length > 0) {
-      // try to locate first item that looks like output
-      for (const item of data) {
-        if (item && typeof item === 'object' && item.output) {
-          const stripped = stripFencedJson(item.output);
-          try {
-            return JSON.parse(stripped);
-          } catch {
-            return item.output;
-          }
-        }
-      }
-      // fallback: return whole array
-      return data;
-    }
-    // if object, return as-is
-    if (typeof data === 'object') return data;
-    // if string, try to parse JSON content
-    const stripped = stripFencedJson(String(data));
-    try {
-      return JSON.parse(stripped);
-    } catch {
-      return String(data);
-    }
-  } catch (e) {
-    return data;
-  }
-}
-
-// GET /api/ai/n8n-stock-advice?symbol=...
-router.get('/n8n-stock-advice', async (req, res) => {
-  try {
-    const { symbol } = req.query;
-    if (!symbol) return res.status(400).json({ error: 'Symbol required' });
-
-    const n8nUrl = `http://localhost:5678/webhook/stock-advice?symbol=${encodeURIComponent(symbol)}`;
-    console.log('[N8N Proxy] forwarding to', n8nUrl);
-    const r = await fetch(n8nUrl);
-    if (!r.ok) {
-      const t = await r.text().catch(() => '');
-      return res.status(r.status).json({ error: `n8n returned ${r.status}`, details: t || r.statusText });
-    }
-    const data = await r.json();
-    const parsed = parseN8nResponseBody(data);
-    res.json({ symbol: symbol.toUpperCase(), source: 'n8n', content: parsed, raw: data, generated_at: new Date().toISOString() });
-  } catch (err) {
-    console.error('[N8N Proxy] error', err);
-    res.status(502).json({ error: 'n8n proxy failed', details: err.message });
-  }
-});
-
-// GET /api/ai/n8n-global-advice?symbol=...
-router.get('/n8n-global-advice', async (req, res) => {
-  try {
-    const { symbol } = req.query;
-    if (!symbol) return res.status(400).json({ error: 'Symbol required' });
-
-    const n8nUrl = `http://localhost:5678/webhook/globalstock-advice?symbol=${encodeURIComponent(symbol)}`;
-    console.log('[N8N Proxy] forwarding to', n8nUrl);
-    const r = await fetch(n8nUrl);
-    if (!r.ok) {
-      const t = await r.text().catch(() => '');
-      // If n8n failed with a 500 that indicates the workflow couldn't be started,
-      // provide a graceful fallback: attempt to run a local Gemini global analysis (if available).
-      console.error('[N8N Proxy] n8n error response:', r.status, t || r.statusText);
-      if (r.status === 500 && genAI) {
-        try {
-          console.log('[N8N Proxy] Attempting Gemini fallback for global analysis');
-          const clean = String(symbol).toUpperCase().replace('.NS', '').replace('.BO', '');
-          const prompt = `\nYou are a global macro strategist. Provide a GLOBAL perspective for ${clean}:\n- Macro context (2 lines)\n- Industry outlook (2 lines)\n- Global catalysts/risks (bulleted)\n- Global recommendation: OVERWEIGHT / NEUTRAL / UNDERWEIGHT (with conviction)\nReturn plain text or JSON.\n`;
-          const text = await generateFromGemini(prompt);
-          const parsed = tryParseJSONMaybeString(text);
-          return res.json({ symbol: clean, source: 'fallback-gemini', raw: text, parsed, generated_at: new Date().toISOString() });
-        } catch (fallbackErr) {
-          console.error('[N8N Proxy] Gemini fallback failed:', fallbackErr);
-          return res.status(502).json({ error: 'n8n returned 500 and Gemini fallback failed', details: String(fallbackErr) });
-        }
-      }
-      return res.status(r.status).json({ error: `n8n returned ${r.status}`, details: t || r.statusText });
-    }
-    const data = await r.json();
-    const parsed = parseN8nResponseBody(data);
-    res.json({ symbol: symbol.toUpperCase(), source: 'n8n', content: parsed, raw: data, generated_at: new Date().toISOString() });
-  } catch (err) {
-    console.error('[N8N Proxy] error', err);
-    res.status(502).json({ error: 'n8n proxy failed', details: err.message });
   }
 });
 
