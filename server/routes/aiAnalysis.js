@@ -199,8 +199,7 @@ router.post('/news-analysis', async (req, res) => {
     const { news = [] } = req.body;
 
     if (!genAI) {
-      console.error('[news-analysis] Gemini not initialized');
-      throw new Error('Gemini not initialized');
+      console.warn('[news-analysis] Gemini not initialized - proceeding to fallback');
     }
 
     // Limit to top 15 items to fit context
