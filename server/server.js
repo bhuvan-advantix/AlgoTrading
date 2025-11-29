@@ -369,6 +369,7 @@ app.post('/api/kite/order', findUserFromHeader, async (req, res) => {
         }
 
         const kite = makeKiteClient(user.kiteAccessToken, user.kiteApiKey);
+        console.log(`[Order] Using API Key: ${user.kiteApiKey || 'DEFAULT_ENV_KEY'} | Access Token: ${user.kiteAccessToken ? user.kiteAccessToken.substring(0, 6) + '...' : 'MISSING'}`);
 
         // Build payload for Kite; pass 'variety' as the first argument to placeOrder
         const orderPayload = {
