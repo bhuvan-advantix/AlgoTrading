@@ -1397,7 +1397,7 @@ const AdvantixApp = () => {
         const regeneratePicks = async () => {
             alertUser({ type: 'info', message: 'Regenerating AI picks…' });
             try {
-                const resp = await fetch(`${API_BASE || ''}/api/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timeframe: 'open' }) });
+                const resp = await fetch(`${API_URL}/api/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timeframe: 'open' }) });
                 if (!resp.ok) throw new Error('AI backend returned an error');
                 const data = await resp.json();
                 const picks = data.picks || data.recommendations || aiRecommendations || [];

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { readState, placeMarketOrder } from '../../utils/paperTradingStore';
-import { API_BASE } from '../../config';
+import { API_URL } from '../../config';
 
 export default function Portfolio() {
   const [portfolioData, setPortfolioData] = useState([]);
@@ -29,7 +29,7 @@ export default function Portfolio() {
 
     try {
       // Use the new backend endpoint
-      const res = await fetch(`${API_BASE}/paper-trading/portfolio`, {
+      const res = await fetch(`${API_URL}/api/paper-trading/portfolio`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ positions })

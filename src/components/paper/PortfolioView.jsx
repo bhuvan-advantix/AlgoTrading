@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { readState } from '../../utils/paperTradingStore';
-import { API_BASE } from '../../config';
+import { API_URL } from '../../config';
 
 export default function PortfolioView() {
   const [portfolioData, setPortfolioData] = useState([]);
@@ -28,7 +28,7 @@ export default function PortfolioView() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/paper-trading/portfolio`, {
+      const res = await fetch(`${API_URL}/api/paper-trading/portfolio`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ positions })

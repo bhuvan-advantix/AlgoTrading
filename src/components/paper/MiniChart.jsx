@@ -11,7 +11,7 @@ export default function MiniChart({ symbol }) {
     async function load() {
       try {
         // Update API URL to use environment variable
-        const apiBase = import.meta.env.VITE_MARKET_API_URL || 'http://localhost:8081/api';
+        const apiBase = import.meta.env.VITE_MARKET_API_URL || 'https://algotrading-2sbm.onrender.com/api';
         const r = await fetch(`${apiBase}/chart/${encodeURIComponent(symbol)}?range=5d&interval=15m`);
         if (!r.ok) throw new Error('Failed to fetch chart data');
 

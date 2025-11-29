@@ -1,5 +1,5 @@
 class TransactionService {
-  static API_BASE = (import.meta.env.VITE_MARKET_API_URL || 'http://localhost:8081/api') + '/transactions';
+  static API_BASE = (import.meta.env.VITE_MARKET_API_URL || 'https://algotrading-2sbm.onrender.com/api') + '/transactions';
 
   static async getAll(userId) {
     const res = await fetch(`${this.API_BASE}/${userId}`);

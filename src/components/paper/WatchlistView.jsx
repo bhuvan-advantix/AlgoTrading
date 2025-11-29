@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://localhost:8081/api";
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "https://algotrading-2sbm.onrender.com/api";
 
 export default function WatchlistView() {
   const [watchlist, setWatchlist] = useState(() => {
