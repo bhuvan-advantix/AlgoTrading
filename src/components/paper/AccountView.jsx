@@ -118,6 +118,33 @@ export default function AccountView() {
 
   const { kiteUserId: ctxKiteUserId } = useContext(AppContext) || {};
 
+  // Fetch Zerodha account details
+  const fetchKiteAccount = React.useCallback(async () => {
+    const kiteUserId = ctxKiteUserId || (() => { try { return localStorage.getItem('kiteUserId'); } catch { return null; } })();
+    if (!kiteUserId) return;
+
+    setKiteLoading(true);
+    setKiteError(null);
+    try {
+      const r = await fetch(`${API_URL}/api/kite/account`, { headers: { 'x-user-id': kiteUserId } });
+      if (!r.ok) {
+        throw new Error(`Server returned ${r.status}`);
+      }
+      const j = await r.json();
+      if (j.success) {
+        setKiteAccount(j.data);
+        setKiteLastUpdated(Date.now());
+      } else {
+        throw new Error(j.error || 'Failed to fetch account');
+      }
+    } catch (err) {
+      console.warn('fetchKiteAccount error', err);
+      setKiteError(err.message);
+    } finally {
+      setKiteLoading(false);
+    }
+  }, [ctxKiteUserId]);
+
   // Fetch Zerodha/Kite account details if user has connected (kiteUserId in context or localStorage)
   useEffect(() => {
     const kiteUserId = ctxKiteUserId || (() => {
