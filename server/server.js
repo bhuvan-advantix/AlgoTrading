@@ -20,7 +20,7 @@ const app = express();
 // --- ENVIRONMENT VARIABLES (Assumed to be loaded from .env) ---
 const KITE_API_KEY = process.env.KITE_API_KEY || '73k6zq3vc6hr7ver';
 const KITE_API_SECRET = process.env.KITE_API_SECRET || 'h7oqtuehtvkil8s6fdursq6tvto7iz60';
-const KITE_REDIRECT_URI = process.env.KITE_REDIRECT_URI || 'https://advantix-trading.netlify.app/redirect';
+const KITE_REDIRECT_URI = process.env.KITE_REDIRECT_URI || 'https://advantix-algotrading.netlify.app';
 const TWELVEDATA_API_KEY = process.env.TWELVEDATA_API_KEY || '293f5d774ee04a54ac65869553752fd4';
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || 'd3o7cd1r01qmj8304e7gd3o7cd1r01qmj8304e80';
 // --- END ENV VARS ---
