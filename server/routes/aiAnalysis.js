@@ -15,12 +15,13 @@ const router = express.Router();
 console.log('[aiAnalysis] Router initialized');
 
 // Initialize Gemini (guard if key missing)
-const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCKlsNISHYohKcoF_BA6bSPcVmYeBp5Iqw';
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
 let genAI = null;
 if (GEMINI_KEY) {
   genAI = new GoogleGenerativeAI(GEMINI_KEY);
+  console.log('[aiAnalysis] GEMINI_API_KEY detected — Gemini client initialized');
 } else {
-  console.warn('[aiAnalysis] GEMINI_API_KEY not provided — Gemini endpoints will fail if used.');
+  console.warn('[aiAnalysis] GEMINI_API_KEY not provided — Gemini endpoints will fallback to heuristic.');
 }
 
 // Helper to format market data for Gemini (safe fallback)
@@ -62,21 +63,93 @@ function tryParseJSONMaybeString(input) {
 // ========== GENERIC GEMINI CALL (safe wrapper) ==========
 async function generateFromGemini(prompt, modelName = 'gemini-pro') {
   if (!genAI) throw new Error('Gemini not initialized (missing GEMINI_API_KEY).');
-  const model = genAI.getGenerativeModel({ model: modelName });
-  const result = await model.generateContent(prompt);
-  // result.response may be SDK object with text() method or .text
-  let text = '';
-  if (result?.response?.text) {
-    // some SDKs return a function to get text
-    text = await result.response.text();
-  } else if (typeof result?.response === 'string') {
-    text = result.response;
-  } else if (result?.text) {
-    text = result.text;
-  } else {
-    text = JSON.stringify(result);
+
+  // Allow passing either a single model name or an array of preferred models
+  let candidates = Array.isArray(modelName) ? modelName.slice() : [modelName];
+
+  // Try to augment candidate list from SDK if possible
+  try {
+    if (typeof genAI.listModels === 'function') {
+      const list = await genAI.listModels();
+      const names = Array.isArray(list) ? list.map(m => m.name || m.id || m.model || String(m)).filter(Boolean) : [];
+      candidates = candidates.concat(names);
+    } else if (GEMINI_KEY) {
+      // If SDK doesn't support listModels, try the REST models endpoint as a fallback
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(GEMINI_KEY)}`;
+        const r = await fetch(url);
+        if (r.ok) {
+          const j = await r.json();
+          // API may return { models: [...] }
+          const names = Array.isArray(j.models) ? j.models.map(m => m.name || m.model || String(m)).filter(Boolean) : [];
+          candidates = candidates.concat(names);
+        } else {
+          console.warn('[aiAnalysis] REST models list failed:', r.status, await r.text());
+        }
+      } catch (e) {
+        console.warn('[aiAnalysis] REST models list error:', e?.message || e);
+      }
+    }
+  } catch (e) {
+    // ignore listModels errors, we'll fall back to common names below
+    console.warn('[aiAnalysis] listModels failed:', e?.message || e);
   }
-  return text;
+
+  // Add some reasonable fallbacks that are known to be used in various SDKs
+  candidates = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', ...candidates, 'gemini-pro', 'gemini-1.0-pro'];
+  // Ensure uniqueness while preserving order
+  candidates = [...new Set(candidates.filter(Boolean))];
+
+  let lastErr = null;
+  for (const m of candidates) {
+    try {
+      console.log(`[aiAnalysis] Attempting Gemini model: ${m}`);
+      const model = genAI.getGenerativeModel({ model: m });
+      const result = await model.generateContent(prompt);
+      // result.response may be SDK object with text() method or .text
+      let text = '';
+      if (result?.response?.text) {
+        text = await result.response.text();
+      } else if (typeof result?.response === 'string') {
+        text = result.response;
+      } else if (result?.text) {
+        text = result.text;
+      } else {
+        text = JSON.stringify(result);
+      }
+      console.log(`[aiAnalysis] Gemini model ${m} succeeded`);
+      return text;
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[aiAnalysis] Gemini model ${m} failed:`, err?.message || err);
+      // Try next candidate
+      continue;
+    }
+  }
+
+  // If none succeeded, throw last error for upstream handling
+  throw lastErr || new Error('No Gemini model succeeded');
+}
+
+// REST helper: try to list models from v1 and v1beta REST endpoints for diagnostics
+async function fetchRestModels(apiKey) {
+  const endpoints = [
+    `https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(apiKey)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+  ];
+  const results = [];
+  for (const url of endpoints) {
+    try {
+      const r = await fetch(url, { method: 'GET' });
+      const text = await r.text();
+      let parsed = null;
+      try { parsed = JSON.parse(text); } catch { parsed = text; }
+      results.push({ url, status: r.status, ok: r.ok, body: parsed });
+    } catch (e) {
+      results.push({ url, status: null, ok: false, error: String(e?.message || e) });
+    }
+  }
+  return results;
 }
 
 // ========== ROUTES ==========
@@ -199,7 +272,8 @@ Focus on real economic drivers and market impact. Be professional and use formal
       const cleaned = stripFencedJson(text);
       const parsed = tryParseJSONMaybeString(cleaned);
       if (parsed && typeof parsed === 'object' && parsed.marketSentiment) {
-        return res.json(parsed);
+        // mark that this came from Gemini
+        return res.json({ source: 'gemini', ...parsed });
       }
 
       // If parsed is not structured as expected, attempt to parse JSON directly from cleaned text
@@ -208,22 +282,41 @@ Focus on real economic drivers and market impact. Be professional and use formal
         return res.json(json);
       } catch (err) {
         // fallback structured response
-        return res.json({
-          marketSentiment: 'Neutral',
-          keyFactors: ['AI returned unstructured text'],
-          recommendation: cleaned.substring(0, 500),
-          confidenceScore: 0.5
-        });
+        return res.json({ source: 'gemini', marketSentiment: 'Neutral', keyFactors: ['AI returned unstructured text'], recommendation: cleaned.substring(0, 500), confidenceScore: 0.5 });
       }
     } catch (err) {
       console.error('[news-analysis] Gemini error fallback:', err.message || err);
-      return res.status(500).json({
-        marketSentiment: "Analysis Error",
-        keyFactors: ["External AI failure"],
-        recommendation: `Backend Error: ${err.message || 'AI provider error'}`,
-        confidenceScore: 0,
-        details: err.message || String(err)
-      });
+      // If Gemini fails at runtime (model not found, API mismatch), fall back to the local heuristic
+      try {
+        console.warn('[news-analysis] Falling back to heuristic analysis due to Gemini error');
+        const corpus = analysisData.map(it => `${it.headline} ${it.summary}`).join(' ').toLowerCase();
+        const stopWords = new Set(['the', 'and', 'a', 'to', 'of', 'in', 'for', 'on', 'with', 'by', 'is', 'are', 'from', 'at', 'as', 'that', 'this', 'it', 'be', 'has', 'have']);
+        const words = corpus.split(/[^a-zA-Z0-9]+/).filter(w => w && !stopWords.has(w) && w.length > 2);
+        const freq = {};
+        for (const w of words) freq[w] = (freq[w] || 0) + 1;
+        const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const keyFactors = sorted.slice(0, 3).map(s => s[0].replace(/_/g, ' '));
+        const positive = ['rise', 'gains', 'up', 'beat', 'upgrade', 'positive', 'good', 'surge', 'gain', 'increase'];
+        const negative = ['fall', 'down', 'drop', 'miss', 'downgrade', 'negative', 'loss', 'decline', 'slump', 'weak'];
+        let pos = 0, neg = 0;
+        for (const p of positive) if (corpus.includes(p)) pos++;
+        for (const n of negative) if (corpus.includes(n)) neg++;
+        let marketSentiment = 'Neutral';
+        if (pos > neg) marketSentiment = 'Bullish';
+        else if (neg > pos) marketSentiment = 'Bearish';
+        const confidenceScore = Math.min(0.95, Math.max(0.2, Math.abs(pos - neg) / Math.max(1, pos + neg)));
+        const recommendation = marketSentiment === 'Bullish' ? 'Consider BUY on strength; validate with price action.' : marketSentiment === 'Bearish' ? 'Consider SELL/HEDGE on weakness; validate with risk management.' : 'No clear directional signal; stay neutral.';
+        return res.json({ source: 'heuristic', marketSentiment, keyFactors, recommendation, confidenceScore, details: String(err?.message || err) });
+      } catch (hf) {
+        console.error('[news-analysis] Heuristic fallback failed:', hf);
+        return res.status(500).json({
+          marketSentiment: "Analysis Error",
+          keyFactors: ["External AI failure"],
+          recommendation: `Backend Error: ${err.message || 'AI provider error'}`,
+          confidenceScore: 0,
+          details: err.message || String(err)
+        });
+      }
     }
 
   } catch (error) {
@@ -236,6 +329,55 @@ Focus on real economic drivers and market impact. Be professional and use formal
       confidenceScore: 0,
       details: error.message
     });
+  }
+});
+
+// Health endpoint to check AI & DB availability
+router.get('/health', async (req, res) => {
+  const status = { aiAvailable: false, dbConnected: false, models: null };
+  try {
+    // DB check (mongoose connection readyState: 1 = connected)
+    try {
+      // require mongoose only when available
+      // eslint-disable-next-line global-require
+      const mongoose = require('mongoose');
+      status.dbConnected = mongoose?.connection?.readyState === 1;
+    } catch (e) {
+      status.dbConnected = false;
+    }
+
+    if (genAI) {
+      try {
+        if (typeof genAI.listModels === 'function') {
+          const list = await genAI.listModels();
+          status.models = list;
+          status.aiAvailable = Array.isArray(list) && list.length > 0;
+        } else {
+          // SDK lacks listModels — try REST model discovery for diagnostics
+          status.aiAvailable = true; // SDK client exists; we will probe REST models below
+          if (GEMINI_KEY) {
+            try {
+              const rest = await fetchRestModels(GEMINI_KEY);
+              status.models = rest;
+              // determine aiAvailable truthiness based on REST responses
+              const anyOk = rest.some(r => r && r.ok && r.body && ((Array.isArray(r.body.models) && r.body.models.length > 0) || (r.body && Object.keys(r.body).length > 0)));
+              status.aiAvailable = anyOk || status.aiAvailable;
+            } catch (e) {
+              status.models = { error: String(e?.message || e) };
+            }
+          } else {
+            status.models = { info: 'No GEMINI_API_KEY set for REST discovery' };
+          }
+        }
+      } catch (e) {
+        status.aiAvailable = false;
+        status.models = { error: String(e?.message || e) };
+      }
+    }
+
+    res.json({ ok: true, ...status });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err?.message || err) });
   }
 });
 
@@ -324,6 +466,33 @@ Return plain text or JSON.
   } catch (err) {
     console.error('Global advice error:', err);
     res.status(500).json({ error: 'Failed to generate global advice', details: err.message });
+  }
+});
+
+// Expose a models endpoint for diagnostics
+// GET /api/ai/models
+// Returns the raw listModels result or an error message
+router.get('/models', async (req, res) => {
+  if (!genAI) return res.status(503).json({ ok: false, error: 'Gemini not initialized (no GEMINI_API_KEY)' });
+  try {
+    if (typeof genAI.listModels === 'function') {
+      const list = await genAI.listModels();
+      return res.json({ ok: true, source: 'sdk', models: list });
+    }
+
+    // SDK does not expose listModels: attempt REST discovery (v1 / v1beta)
+    if (GEMINI_KEY) {
+      try {
+        const rest = await fetchRestModels(GEMINI_KEY);
+        return res.json({ ok: true, source: 'rest', models: rest });
+      } catch (e) {
+        return res.status(500).json({ ok: false, error: 'REST discovery failed', details: String(e?.message || e) });
+      }
+    }
+
+    return res.status(501).json({ ok: false, error: 'listModels not supported by SDK and no GEMINI_API_KEY for REST discovery' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err?.message || err) });
   }
 });
 
