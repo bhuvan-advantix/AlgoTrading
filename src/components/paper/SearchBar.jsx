@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { MARKET_API_BASE } from '../../config';
+import { MARKET_API_URL } from '../../config';
 
 const SearchBar = ({ onSelect, onSearch }) => {
   const [query, setQuery] = useState("");
@@ -43,7 +43,7 @@ const SearchBar = ({ onSelect, onSearch }) => {
       setError(null);
 
       try {
-        const base = MARKET_API_BASE || 'https://algotrading-1-v2p7.onrender.com/api';
+        const base = MARKET_API_URL || 'https://algotrading-1-v2p7.onrender.com/api';
         const res = await fetch(
           `${base}/search?query=${encodeURIComponent(query)}`,
           { signal: controllerRef.current.signal }
