@@ -212,6 +212,7 @@ app.post(["/api/kite/token", "/api/kite/exchange-token"], async (req, res) => {
             name: response.user_shortname,
             zerodhaConnected: true,
             kiteAccessToken: accessToken,
+            kiteApiKey: apiKey, // Save the key used to generate this token
             userName: userName,
         };
 
@@ -369,7 +370,7 @@ app.post('/api/kite/order', findUserFromHeader, async (req, res) => {
         }
 
         const kite = makeKiteClient(user.kiteAccessToken, user.kiteApiKey);
-        console.log(`[Order] Using API Key: ${user.kiteApiKey || 'DEFAULT_ENV_KEY'} | Access Token: ${user.kiteAccessToken ? user.kiteAccessToken.substring(0, 6) + '...' : 'MISSING'}`);
+        console.log(`[Order] Using Kite API Key: ${user.kiteApiKey || 'Fallback to Env'} for User: ${user.userId}`);
 
         // Build payload for Kite; pass 'variety' as the first argument to placeOrder
         const orderPayload = {

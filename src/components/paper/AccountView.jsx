@@ -68,88 +68,6 @@ export default function AccountView() {
   const [kiteLastUpdated, setKiteLastUpdated] = useState(null);
   const [activeZerodhaTab, setActiveZerodhaTab] = useState('dashboard'); // 'dashboard' | 'successful' | 'failed'
 
-  // --- Zerodha Connection & Config State ---
-  const [showKeyConfig, setShowKeyConfig] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [apiSecretInput, setApiSecretInput] = useState('');
-  const [configStatus, setConfigStatus] = useState(null);
-
-  const handleSaveKeys = async () => {
-    const kiteUserId = ctxKiteUserId || (() => { try { return localStorage.getItem('kiteUserId'); } catch { return null; } })();
-    // We need a userId to save keys. If not logged in, we can't save to DB easily without a user session.
-    // Assuming the app has a global userId or we use a temporary one.
-    // Ideally, we use the userId from AppContext, but AccountView might not have it.
-    // Let's try to get it from localStorage or prompt.
-    // For now, we'll try to use the kiteUserId if available, or ask the user to connect first?
-    // Wait, if they are NOT connected, they don't have a kiteUserId yet.
-    // But they might have a global app userId. 
-    // Let's check if we can get a userId.
-
-    // Fallback: If no userId, we can't save to DB. But we can try to save to localStorage? 
-    // No, keys must be on backend.
-
-    // Let's assume there's a way to identify the user. 
-    // If not, we'll just use a default "guest" ID or prompt.
-    // Actually, the backend /api/kite/login takes ?userId=...
-
-    setConfigStatus('Saving...');
-    try {
-      // We'll use a generated ID if none exists, stored in localStorage
-      let uid = localStorage.getItem('app_user_id');
-      if (!uid) {
-        uid = 'user_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('app_user_id', uid);
-      }
-
-      const res = await fetch(`${API_URL}/api/user/save-kite-keys`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: uid,
-          kiteApiKey: apiKeyInput,
-          kiteApiSecret: apiSecretInput
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setConfigStatus('Keys saved! You can now connect.');
-        setTimeout(() => { setShowKeyConfig(false); setConfigStatus(null); }, 1500);
-      } else {
-        setConfigStatus('Failed: ' + (data.error || 'Unknown error'));
-      }
-    } catch (e) {
-      setConfigStatus('Error: ' + e.message);
-    }
-  };
-
-  const handleConnectZerodha = async () => {
-    try {
-      let uid = localStorage.getItem('app_user_id');
-      if (!uid) {
-        uid = 'user_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('app_user_id', uid);
-      }
-
-      // Call backend to get login URL (it will use the saved keys if any)
-      const res = await fetch(`${API_URL}/api/kite/login?userId=${uid}`);
-      const data = await res.json();
-      if (data.success && data.data.loginUrl) {
-        window.location.href = data.data.loginUrl;
-      } else {
-        alert('Failed to get login URL: ' + (data.error || 'Unknown error'));
-      }
-    } catch (e) {
-      alert('Connection error: ' + e.message);
-    }
-  };
-
-  const handleDisconnect = () => {
-    if (confirm('Disconnect Zerodha account?')) {
-      localStorage.removeItem('kiteUserId');
-      window.location.reload();
-    }
-  };
-
   // Debounce timer for order fetching to prevent rate limiting
   const _orderFetchTimerRef = React.useRef(null);
   const _lastOrderFetchRef = React.useRef(0);
@@ -599,11 +517,6 @@ export default function AccountView() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {kiteAccount && (
-              <button onClick={handleDisconnect} className="text-xs text-red-400 hover:text-red-300 mr-2 border border-red-900/50 px-2 py-1 rounded bg-red-900/10">
-                Disconnect
-              </button>
-            )}
             <label className="text-xs text-gray-400">Auto-refresh</label>
             <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} className="w-4 h-4 cursor-pointer" />
             <select value={refreshIntervalMs} onChange={(e) => setRefreshIntervalMs(Number(e.target.value))} className="bg-[#1a2332] text-xs text-gray-300 p-2 rounded border border-gray-600">
@@ -626,28 +539,9 @@ export default function AccountView() {
             <div className="text-xs text-gray-400">Ensure the backend at <span className="font-mono text-gray-300">{API_URL}</span> is running.</div>
           </div>
         ) : !kiteAccount ? (
-          <div className="bg-blue-900/20 border border-blue-600 p-8 rounded-lg text-center">
-            <div className="text-blue-300 font-semibold text-lg mb-2">Zerodha Not Connected</div>
-            <div className="text-blue-200 text-sm mb-6 max-w-md mx-auto">
-              Connect your Zerodha Kite account to enable live trading.
-              If you are using your own Kite Connect App, please configure your API keys first.
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={handleConnectZerodha}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition shadow-lg shadow-blue-900/50"
-              >
-                Connect Zerodha
-              </button>
-
-              <button
-                onClick={() => setShowKeyConfig(true)}
-                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium rounded-lg transition border border-gray-600"
-              >
-                Configure API Keys
-              </button>
-            </div>
+          <div className="bg-blue-900/20 border border-blue-600 p-6 rounded-lg text-center">
+            <div className="text-blue-300 font-semibold">Zerodha Not Connected</div>
+            <div className="text-blue-200 text-sm mt-2">Complete session setup to enable live trading</div>
           </div>
         ) : (
           <>
@@ -1112,65 +1006,6 @@ export default function AccountView() {
           Reset Account
         </button>
       </div>
-      {/* === API Key Config Modal === */}
-      {showKeyConfig && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowKeyConfig(false)} />
-          <div className="relative bg-[#0f1724] p-6 rounded-xl shadow-2xl w-full max-w-md border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-4">Configure Zerodha API Keys</h3>
-            <p className="text-sm text-gray-400 mb-6">
-              If you are using your own Kite Connect App, enter your API Key and Secret here.
-              Leave blank to use the default system keys.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-gray-400 uppercase mb-1">API Key</label>
-                <input
-                  type="text"
-                  value={apiKeyInput}
-                  onChange={e => setApiKeyInput(e.target.value)}
-                  className="w-full bg-[#1a2332] border border-gray-600 rounded p-2 text-white text-sm focus:border-blue-500 outline-none"
-                  placeholder="Enter your Kite API Key"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-400 uppercase mb-1">API Secret</label>
-                <input
-                  type="password"
-                  value={apiSecretInput}
-                  onChange={e => setApiSecretInput(e.target.value)}
-                  className="w-full bg-[#1a2332] border border-gray-600 rounded p-2 text-white text-sm focus:border-blue-500 outline-none"
-                  placeholder="Enter your Kite API Secret"
-                />
-              </div>
-
-              {configStatus && (
-                <div className={`p-3 rounded text-sm ${configStatus.includes('Success') || configStatus.includes('saved') ? 'bg-green-900/30 text-green-300' : 'bg-blue-900/30 text-blue-300'}`}>
-                  {configStatus}
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setShowKeyConfig(false)}
-                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveKeys}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded transition"
-                >
-                  Save Keys
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div >
   );
 }
