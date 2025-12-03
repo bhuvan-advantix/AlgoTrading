@@ -17,6 +17,17 @@ const tradeSchema = new mongoose.Schema({
     aiRecommendation: { type: String }, // Store AI's analysis basis
     executionTime: { type: Number }, // Time taken to execute
     tradingWindow: { type: String }, // Record which trading window this was executed in
+
+    // --- Zerodha Brokerage & Tax Fields ---
+    brokerage: { type: Number, default: 0 },
+    stt: { type: Number, default: 0 },
+    exchangeCharges: { type: Number, default: 0 },
+    gst: { type: Number, default: 0 },
+    sebiCharges: { type: Number, default: 0 },
+    stampDuty: { type: Number, default: 0 },
+    dpCharges: { type: Number, default: 0 },
+    totalCharges: { type: Number, default: 0 },
+    netAmount: { type: Number, default: 0 }, // Final amount (Price * Qty +/- Charges)
 });
 
 export const Trade = mongoose.models.Trade || mongoose.model('Trade', tradeSchema);

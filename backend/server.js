@@ -29,8 +29,6 @@ app.use(express.json());
 // Fix for ESM import compatibility: Instantiate the class
 const YFClass = yahooFinance.default || yahooFinance;
 const yf = new YFClass();
-// Optional: suppress survey notice
-// yf.suppressNotices(['yahooSurvey']);
 
 // Basic health check
 app.get('/', (req, res) => {
@@ -52,7 +50,7 @@ app.get('/api/quote/:symbol', async (req, res) => {
     // Fetch quote and historical data in parallel
     const [quote, history] = await Promise.all([
       yf.quote(sym),
-      yf.chart(sym, { period1: startDate, interval: '1d' }) // 1 month history, daily candles
+      yf.chart(sym, { period1: startDate, interval: '1d' })
     ]);
 
     if (!quote) {
@@ -82,15 +80,20 @@ app.get('/api/quote/:symbol', async (req, res) => {
       });
     }
 
+    // Detect currency - Yahoo sometimes returns wrong currency for Indian stocks
+    const isIndian = sym.endsWith('.NS') || sym.endsWith('.BO');
+    const currency = isIndian ? 'INR' : (quote.currency || 'USD');
+    console.log(`Quote for ${sym}: currency=${currency}`);
+
     res.json({
       ok: true,
       symbol: sym,
       currentPrice: quote.regularMarketPrice,
       dailyChangePct: quote.regularMarketChangePercent,
-      currency: quote.currency,
+      currency: currency,
       marketState: quote.marketState,
-      historicalPrices: historicalPrices.map(h => h.close), // For simple sparkline if needed
-      history: historicalPrices // Full OHLC for charts
+      historicalPrices: historicalPrices.map(h => h.close),
+      history: historicalPrices
     });
   } catch (err) {
     console.error(`Yahoo Finance error for ${symbol}:`, err.message);
@@ -98,21 +101,35 @@ app.get('/api/quote/:symbol', async (req, res) => {
   }
 });
 
-// Search endpoint for stocks
+// Search endpoint - Returns ALL stocks and ETFs from Yahoo Finance with live data
 app.get('/api/search', async (req, res) => {
   const { query } = req.query;
   if (!query) return res.json({ results: [] });
 
   try {
     console.log(`Searching for: ${query}`);
+
     const result = await yf.search(query);
-    const quotes = result.quotes.filter(q => q.isYahooFinance).map(q => ({
-      symbol: q.symbol,
-      name: q.shortname || q.longname,
-      type: q.quoteType,
-      exchange: q.exchange,
-      currency: 'USD' // Yahoo search doesn't always return currency
-    }));
+
+    // Include EQUITY and ETF types - Yahoo Finance returns ALL matching results worldwide
+    const quotes = result.quotes
+      .filter(q => q.isYahooFinance && (q.quoteType === 'EQUITY' || q.quoteType === 'ETF'))
+      .map(q => {
+        // Detect currency based on symbol suffix
+        const symbol = q.symbol || '';
+        const isIndian = symbol.endsWith('.NS') || symbol.endsWith('.BO');
+        const currency = isIndian ? 'INR' : (q.currency || 'USD');
+
+        return {
+          symbol: q.symbol,
+          name: q.shortname || q.longname,
+          type: q.quoteType, // Shows 'ETF' or 'EQUITY'
+          exchange: q.exchange,
+          currency: currency
+        };
+      });
+
+    console.log(`Found ${quotes.length} results (${quotes.filter(q => q.type === 'ETF').length} ETFs)`);
     res.json({ results: quotes });
   } catch (err) {
     console.error('Yahoo Search error:', err);

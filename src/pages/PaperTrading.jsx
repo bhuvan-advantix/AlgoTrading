@@ -6,6 +6,7 @@ import TradePanel from '../components/paper/TradePanel';
 import PositionsTable from '../components/paper/PositionsTable';
 import TradeHistory from '../components/paper/TradeHistory';
 import PerformanceSummary from '../components/paper/PerformanceSummary';
+import OrdersView from '../components/paper/OrdersView';
 import { initStore, readState, subscribePrice, resetSession, exportState } from '../utils/paperTradingStore';
 
 const tabs = [
@@ -100,8 +101,8 @@ export default function PaperTrading() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id
-                    ? 'bg-gradient-to-r from-purple-600 to-teal-500 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  ? 'bg-gradient-to-r from-purple-600 to-teal-500 text-white shadow-lg'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                   }`}
               >
                 {tab.label}
@@ -118,8 +119,8 @@ export default function PaperTrading() {
         >
           {activeTab === 'trade' && <TradePanel state={stateSnapshot} refresh={refresh} selectedSymbol={selectedSymbol} setSelectedSymbol={setSelectedSymbol} />}
           {activeTab === 'watchlist' && <div>Watchlist Content</div>}
-          {activeTab === 'portfolio' && <div>Portfolio Content</div>}
-          {activeTab === 'orders' && <div>Orders Content</div>}
+          {activeTab === 'portfolio' && <PositionsTable state={stateSnapshot} refresh={refresh} />}
+          {activeTab === 'orders' && <OrdersView />}
           {activeTab === 'account' && <div>Account Content</div>}
         </motion.div>
       </div>

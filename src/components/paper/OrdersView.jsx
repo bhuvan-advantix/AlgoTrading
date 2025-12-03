@@ -59,8 +59,8 @@ export default function OrdersView() {
                   key={type}
                   onClick={() => setFilter(type)}
                   className={`px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${filter === type
-                      ? 'bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow-lg'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                    ? 'bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow-lg'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                     }`}
                 >
                   {type}
@@ -77,8 +77,8 @@ export default function OrdersView() {
                   key={range}
                   onClick={() => setTimeRange(range)}
                   className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${timeRange === range
-                      ? 'bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow-lg'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                    ? 'bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow-lg'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                     }`}
                 >
                   {range}
@@ -100,57 +100,75 @@ export default function OrdersView() {
                 <th className="text-center p-2 sm:p-4 text-xs sm:text-sm text-gray-400">Type</th>
                 <th className="text-right p-2 sm:p-4 text-xs sm:text-sm text-gray-400">Quantity</th>
                 <th className="text-right p-2 sm:p-4 text-xs sm:text-sm text-gray-400">Price</th>
-                <th className="text-right p-2 sm:p-4 text-xs sm:text-sm text-gray-400">Total</th>
+                <th className="text-right p-2 sm:p-4 text-xs sm:text-sm text-gray-400">Gross Amt</th>
+                <th className="text-right p-2 sm:p-4 text-xs sm:text-sm text-yellow-500">Brokerage</th>
+                <th className="text-right p-2 sm:p-4 text-xs sm:text-sm text-red-400">Taxes</th>
+                <th className="text-right p-2 sm:p-4 text-xs sm:text-sm text-emerald-400">Net Amount</th>
                 <th className="text-center p-2 sm:p-4 text-xs sm:text-sm text-gray-400">Status</th>
               </tr>
             </thead>
             <tbody>
               <AnimatePresence>
-                {getFilteredOrders().map(order => (
-                  <motion.tr
-                    key={order.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="border-t border-gray-800"
-                  >
-                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-white">
-                      {new Date(order.ts).toLocaleString()}
-                    </td>
-                    <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-white">
-                      {order.symbol}
-                    </td>
-                    <td className="p-2 sm:p-4 text-center">
-                      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs ${order.side === 'BUY'
+                {getFilteredOrders().map(order => {
+                  const currencySymbol = order.currency
+                    ? (order.currency === 'INR' ? '₹' : '$')
+                    : ((order.symbol || '').toUpperCase().endsWith('.NS') || (order.symbol || '').toUpperCase().endsWith('.BO') ? '₹' : '$');
+
+                  return (
+                    <motion.tr
+                      key={order.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="border-t border-gray-800"
+                    >
+                      <td className="p-2 sm:p-4 text-xs sm:text-sm text-white">
+                        {new Date(order.ts).toLocaleString()}
+                      </td>
+                      <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-white">
+                        {order.symbol}
+                      </td>
+                      <td className="p-2 sm:p-4 text-center">
+                        <span className={`px-2 sm:px-3 py-1 rounded-full text-xs ${order.side === 'BUY'
                           ? 'bg-green-500/20 text-green-400'
                           : 'bg-red-500/20 text-red-400'
-                        }`}>
-                        {order.side}
-                      </span>
-                    </td>
-                    <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-white">
-                      {Number(order.qty).toFixed(8)}
-                    </td>
-                    <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-white">
-                      ₹{Number(order.price).toFixed(2)}
-                    </td>
-                    <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-white">
-                      ₹{Number(order.amount).toFixed(2)}
-                    </td>
-                    <td className="p-2 sm:p-4 text-center">
-                      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs ${order.status === 'FILLED'
+                          }`}>
+                          {order.side}
+                        </span>
+                      </td>
+                      <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-white">
+                        {Number(order.qty).toFixed(8)}
+                      </td>
+                      <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-white">
+                        {currencySymbol}{Number(order.price).toFixed(2)}
+                      </td>
+                      <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-gray-400">
+                        {currencySymbol}{Number(order.amount).toFixed(2)}
+                      </td>
+                      <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-yellow-500">
+                        {currencySymbol}{Number(order.brokerage || 0).toFixed(2)}
+                      </td>
+                      <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-red-400">
+                        {currencySymbol}{Number(order.totalCharges || 0).toFixed(2)}
+                      </td>
+                      <td className="p-2 sm:p-4 text-right text-xs sm:text-sm font-bold text-emerald-400">
+                        {currencySymbol}{Number(order.netAmount || order.amount).toFixed(2)}
+                      </td>
+                      <td className="p-2 sm:p-4 text-center">
+                        <span className={`px-2 sm:px-3 py-1 rounded-full text-xs ${order.status === 'FILLED'
                           ? 'bg-green-500/20 text-green-400'
                           : 'bg-yellow-500/20 text-yellow-400'
-                        }`}>
-                        {order.status}
-                      </span>
-                    </td>
-                  </motion.tr>
-                ))}
+                          }`}>
+                          {order.status}
+                        </span>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
 
                 {getFilteredOrders().length === 0 && (
                   <tr>
-                    <td colSpan="7" className="text-center py-8 text-sm text-gray-400">
+                    <td colSpan="10" className="text-center py-8 text-sm text-gray-400">
                       No orders found
                     </td>
                   </tr>
@@ -166,7 +184,7 @@ export default function OrdersView() {
         <button
           onClick={() => {
             const csv = [
-              ['Date', 'Symbol', 'Type', 'Quantity', 'Price', 'Total', 'Status'],
+              ['Date', 'Symbol', 'Type', 'Quantity', 'Price', 'Gross Amount', 'Brokerage', 'Taxes', 'Net Amount', 'Status'],
               ...getFilteredOrders().map(o => [
                 new Date(o.ts).toLocaleString(),
                 o.symbol,
@@ -174,6 +192,9 @@ export default function OrdersView() {
                 Number(o.qty).toFixed(8),
                 Number(o.price).toFixed(2),
                 Number(o.amount).toFixed(2),
+                Number(o.brokerage || 0).toFixed(2),
+                Number(o.totalCharges || 0).toFixed(2),
+                Number(o.netAmount || o.amount).toFixed(2),
                 o.status
               ])
             ].map(row => row.join(',')).join('\n');

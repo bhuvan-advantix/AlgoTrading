@@ -1,3 +1,5 @@
+import { checkProtectiveOrders } from '../utils/paperTradingStore';
+
 class MarketDataService {
   static API_BASE = import.meta.env.VITE_MARKET_API_URL || 'https://algotrading-1-v2p7.onrender.com/api';
 
@@ -60,7 +62,8 @@ class MarketDataService {
         return {
           price: data.currentPrice,
           changePercent: parseFloat(data.dailyChangePct),
-          symbol: data.symbol
+          symbol: data.symbol,
+          currency: data.currency || 'USD'
         };
       }
       return null;
@@ -85,7 +88,10 @@ class MarketDataService {
     // Poll every 5 sec (safe for UI)
     const intervalId = setInterval(async () => {
       const quote = await this.getQuote(symbol);
-      if (quote) onUpdate(quote);
+      if (quote) {
+        onUpdate(quote);
+        checkProtectiveOrders(symbol, quote.price);
+      }
     }, 5000);
 
     // Cleanup function

@@ -2,6 +2,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import { KiteConnect } from 'kiteconnect';
+import yahooFinance from 'yahoo-finance2';
 import { Trade } from '../models/trade.js';
 import { AuditLog } from '../models/audit.js';
 const router = express.Router();
@@ -31,6 +32,89 @@ const executeTrade = async (order) => {
     throw new Error('Order rejected: insufficient funds');
 };
 
+// --- Zerodha Tax Calculation Helper ---
+const calculateZerodhaCharges = (type, quantity, price, product) => {
+    const turnover = price * quantity;
+    let brokerage = 0;
+    let stt = 0;
+    let exchangeCharges = 0;
+    let gst = 0;
+    let sebiCharges = 0;
+    let stampDuty = 0;
+    let dpCharges = 0;
+
+    // Normalize inputs
+    const isIntraday = (product || '').toUpperCase() === 'MIS';
+    const isSell = type === 'SELL';
+    const isBuy = type === 'BUY';
+
+    // 1. Exchange Transaction Charges (NSE Equity) - ~0.00345%
+    exchangeCharges = turnover * 0.0000345;
+
+    // 2. SEBI Charges - ₹10 / crore (0.0001%)
+    sebiCharges = turnover * 0.000001;
+
+    if (isIntraday) {
+        // Intraday Equity
+        // Brokerage: 0.03% or ₹20 whichever is lower
+        brokerage = Math.min(turnover * 0.0003, 20);
+
+        // STT: 0.025% on SELL only
+        if (isSell) {
+            stt = turnover * 0.00025;
+        }
+
+        // Stamp Duty: 0.003% on BUY only
+        if (isBuy) {
+            stampDuty = turnover * 0.00003;
+        }
+    } else {
+        // Delivery Equity
+        // Brokerage: ₹0
+        brokerage = 0;
+
+        // STT: 0.1% on BUY and SELL
+        stt = turnover * 0.001;
+
+        // Stamp Duty: 0.015% on BUY only
+        if (isBuy) {
+            stampDuty = turnover * 0.00015;
+        }
+
+        // DP Charges: ~₹15.93 on SELL only (₹13.5 + 18% GST)
+        if (isSell) {
+            dpCharges = 15.93;
+        }
+    }
+
+    // GST: 18% on (Brokerage + Exchange Charges + SEBI Charges)
+    gst = (brokerage + exchangeCharges + sebiCharges) * 0.18;
+
+    const totalCharges = brokerage + stt + exchangeCharges + gst + sebiCharges + stampDuty + dpCharges;
+
+    // Net Amount
+    // BUY: Cost = Turnover + Charges
+    // SELL: Realized = Turnover - Charges
+    let netAmount = 0;
+    if (isBuy) {
+        netAmount = turnover + totalCharges;
+    } else {
+        netAmount = turnover - totalCharges;
+    }
+
+    return {
+        brokerage,
+        stt,
+        exchangeCharges,
+        gst,
+        sebiCharges,
+        stampDuty,
+        dpCharges,
+        totalCharges,
+        netAmount
+    };
+};
+
 router.post('/trades/execute', async (req, res) => {
     try {
         const order = req.body;
@@ -46,9 +130,22 @@ router.post('/trades/execute', async (req, res) => {
         if ((!order.price || isNaN(order.price)) && (order.orderType || '').toUpperCase() === 'MARKET') {
             // In production, fetch real-time quote from market data provider
             // Here we simulate with a simple deterministic mock price
-            const base = 100; // fallback base price
-            const mockPrice = Math.max(1, Math.round((base + (Math.random() - 0.5) * 20) * 100) / 100);
-            order.price = mockPrice;
+            try {
+                // Fetch live price from Yahoo Finance
+                let searchSymbol = order.symbol;
+                if (!searchSymbol.includes('.')) searchSymbol += '.NS';
+                const quote = await yahooFinance.quote(searchSymbol);
+                if (quote && quote.regularMarketPrice) {
+                    order.price = quote.regularMarketPrice;
+                } else {
+                    throw new Error('Quote not found');
+                }
+            } catch (err) {
+                console.warn(`Failed to fetch live price for ${order.symbol}, falling back to mock:`, err.message);
+                const base = 100; // fallback base price
+                const mockPrice = Math.max(1, Math.round((base + (Math.random() - 0.5) * 20) * 100) / 100);
+                order.price = mockPrice;
+            }
         }
 
         // For limit orders ensure price is provided
@@ -113,6 +210,19 @@ router.post('/trades/execute', async (req, res) => {
             result = await executeTrade(order);
         }
 
+        // Determine Product Type (CNC/MIS) for Tax Calculation
+        // Use the same logic as the Kite mapping above
+        const symbolMap = {
+            RELIANCE: { exchange: 'NSE', product: 'CNC', tradingsymbol: 'RELIANCE' },
+            HDFCBANK: { exchange: 'NSE', product: 'CNC', tradingsymbol: 'HDFCBANK' },
+            TCS: { exchange: 'NSE', product: 'CNC', tradingsymbol: 'TCS' }
+        };
+        const mappedInfo = symbolMap[(order.symbol || '').toUpperCase()] || { product: order.product || 'CNC' };
+        const productType = mappedInfo.product;
+
+        // Calculate Taxes & Charges
+        const taxes = calculateZerodhaCharges(order.type, order.quantity, order.price, productType);
+
         // Store the order in database
         // incomingUserId already captured earlier
         const tradeRecord = await Trade.create({
@@ -120,7 +230,17 @@ router.post('/trades/execute', async (req, res) => {
             ...order,
             orderId: result.orderId,
             status: 'EXECUTED',
-            timestamp: new Date()
+            timestamp: new Date(),
+            // Add Tax Fields
+            brokerage: taxes.brokerage,
+            stt: taxes.stt,
+            exchangeCharges: taxes.exchangeCharges,
+            gst: taxes.gst,
+            sebiCharges: taxes.sebiCharges,
+            stampDuty: taxes.stampDuty,
+            dpCharges: taxes.dpCharges,
+            totalCharges: taxes.totalCharges,
+            netAmount: taxes.netAmount
         });
 
         // Create audit log

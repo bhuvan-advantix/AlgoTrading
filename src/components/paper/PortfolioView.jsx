@@ -1,82 +1,87 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { readState } from '../../utils/paperTradingStore';
-import { API_URL } from '../../config';
+import MarketDataService from '../../services/marketDataService';
 
 export default function PortfolioView() {
-  const [portfolioData, setPortfolioData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [positions, setPositions] = useState([]);
+  const [prices, setPrices] = useState({});
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Load local state to get positions list
-  const getLocalPositions = () => {
-    const state = readState();
-    if (!state || !state.positions) return [];
-    return Object.entries(state.positions).map(([symbol, pos]) => ({
-      symbol,
-      quantity: pos.qty,
-      avgPrice: pos.avgPrice
-    }));
-  };
-
-  const fetchPortfolioData = async () => {
-    const positions = getLocalPositions();
-    if (positions.length === 0) {
-      setPortfolioData([]);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/api/paper-trading/portfolio`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ positions })
-      });
-
-      if (!res.ok) throw new Error('Failed to fetch portfolio data');
-
-      const data = await res.json();
-      setPortfolioData(data);
-    } catch (err) {
-      console.error('Error fetching portfolio P&L:', err);
-      // Fallback: show local positions with null market data
-      const fallbackData = positions.map(p => ({
-        symbol: p.symbol,
-        quantity: p.quantity,
-        avg_price: p.avgPrice,
-        current_price: null,
-        prev_close: null,
-        market_value: null,
-        unrealized_pnl: null,
-        daily_pnl: null
-      }));
-      setPortfolioData(fallbackData);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Load positions from local store
   useEffect(() => {
-    fetchPortfolioData();
-    const interval = setInterval(fetchPortfolioData, 5000);
-    return () => clearInterval(interval);
-  }, [refreshKey]);
+    const loadPositions = () => {
+      const state = readState();
+      if (state && state.positions) {
+        const posArray = Object.entries(state.positions).map(([symbol, pos]) => ({
+          symbol,
+          quantity: pos.qty,
+          avgPrice: pos.avgPrice
+        }));
+        setPositions(posArray);
+      } else {
+        setPositions([]);
+      }
+    };
 
-  useEffect(() => {
+    loadPositions();
+
+    // Listen for trade updates to reload positions
     const handleUpdate = () => {
+      loadPositions();
       setRefreshKey(prev => prev + 1);
     };
     window.addEventListener('paper-trade-update', handleUpdate);
     return () => window.removeEventListener('paper-trade-update', handleUpdate);
   }, []);
 
+  // Fetch prices for all positions
+  useEffect(() => {
+    if (positions.length === 0) return;
+
+    const fetchPrices = async () => {
+      const newPrices = { ...prices };
+
+      await Promise.all(positions.map(async (p) => {
+        const quote = await MarketDataService.getQuote(p.symbol);
+        if (quote && quote.price) {
+          newPrices[p.symbol] = {
+            price: quote.price,
+            // Estimate prev close if not available
+            prevClose: quote.price / (1 + (quote.changePercent / 100))
+          };
+        }
+      }));
+
+      setPrices(newPrices);
+    };
+
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 5000); // Update every 5s
+    return () => clearInterval(interval);
+  }, [positions.map(p => p.symbol).join(','), refreshKey]);
+
+  // Helper to get currency symbol
+  const getCurrencySymbol = (symbol) => {
+    const sym = (symbol || '').toUpperCase();
+    return (sym.endsWith('.NS') || sym.endsWith('.BO')) ? '₹' : '$';
+  };
+
   // Calculate totals
-  const totals = portfolioData.reduce((acc, pos) => {
-    acc.invested += (pos.quantity * pos.avg_price);
-    acc.current += (pos.market_value || 0);
-    acc.pnl += (pos.unrealized_pnl || 0);
-    acc.dailyPnl += (pos.daily_pnl || 0);
+  const totals = positions.reduce((acc, pos) => {
+    const priceData = prices[pos.symbol];
+    const currentPrice = priceData ? priceData.price : pos.avgPrice; // Fallback to avgPrice if no live data
+    const prevClose = priceData ? priceData.prevClose : currentPrice;
+
+    const invested = pos.quantity * pos.avgPrice;
+    const currentVal = pos.quantity * currentPrice;
+    const pnl = currentVal - invested;
+    const dailyPnl = (currentPrice - prevClose) * pos.quantity;
+
+    acc.invested += invested;
+    acc.current += currentVal;
+    acc.pnl += pnl;
+    acc.dailyPnl += dailyPnl;
     return acc;
   }, { invested: 0, current: 0, pnl: 0, dailyPnl: 0 });
 
@@ -130,16 +135,27 @@ export default function PortfolioView() {
             </tr>
           </thead>
           <tbody>
-            {portfolioData.length === 0 ? (
+            {positions.length === 0 ? (
               <tr>
                 <td colSpan="8" className="text-center py-8 text-gray-400">
-                  {loading ? 'Loading...' : 'No open positions'}
+                  No open positions
                 </td>
               </tr>
             ) : (
-              portfolioData.map(pos => {
-                const invested = pos.quantity * pos.avg_price;
-                const pnlPct = invested === 0 ? 0 : (pos.unrealized_pnl / invested) * 100;
+              positions.map(pos => {
+                const currency = getCurrencySymbol(pos.symbol);
+                const priceData = prices[pos.symbol];
+                const currentPrice = priceData ? priceData.price : null;
+                const prevClose = priceData ? priceData.prevClose : null;
+
+                const invested = pos.quantity * pos.avgPrice;
+                const marketValue = currentPrice ? (pos.quantity * currentPrice) : null;
+                const unrealizedPnl = marketValue ? (marketValue - invested) : null;
+                const pnlPct = invested === 0 ? 0 : (unrealizedPnl / invested) * 100;
+
+                const dailyPnl = (currentPrice && prevClose)
+                  ? (currentPrice - prevClose) * pos.quantity
+                  : null;
 
                 return (
                   <motion.tr
@@ -155,27 +171,27 @@ export default function PortfolioView() {
                       {Number(pos.quantity).toFixed(4)}
                     </td>
                     <td className="text-right p-4 text-white">
-                      ₹{Number(pos.avg_price).toFixed(2)}
+                      {currency}{Number(pos.avgPrice).toFixed(2)}
                     </td>
                     <td className="text-right p-4 text-white">
-                      ₹{Number(invested).toFixed(2)}
+                      {currency}{Number(invested).toFixed(2)}
                     </td>
                     <td className="text-right p-4 text-white">
-                      {pos.current_price ? `₹${pos.current_price.toFixed(2)}` : '—'}
+                      {currentPrice ? `${currency}${currentPrice.toFixed(2)}` : '—'}
                     </td>
                     <td className="text-right p-4 text-white">
-                      {pos.market_value ? `₹${pos.market_value.toFixed(2)}` : '—'}
+                      {marketValue ? `${currency}${marketValue.toFixed(2)}` : '—'}
                     </td>
                     <td className="text-right p-4">
-                      <div className={pos.daily_pnl >= 0 ? 'text-green-400' : 'text-red-400'}>
-                        {pos.daily_pnl !== null ? `₹${pos.daily_pnl.toFixed(2)}` : '—'}
+                      <div className={dailyPnl >= 0 ? 'text-green-400' : 'text-red-400'}>
+                        {dailyPnl !== null ? `${currency}${dailyPnl.toFixed(2)}` : '—'}
                       </div>
                     </td>
                     <td className="text-right p-4">
-                      <div className={pos.unrealized_pnl >= 0 ? 'text-green-400' : 'text-red-400'}>
-                        {pos.unrealized_pnl !== null ? `₹${pos.unrealized_pnl.toFixed(2)}` : '—'}
+                      <div className={unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}>
+                        {unrealizedPnl !== null ? `${currency}${unrealizedPnl.toFixed(2)}` : '—'}
                         <span className="text-sm ml-1">
-                          ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
+                          {unrealizedPnl !== null ? `(${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)` : ''}
                         </span>
                       </div>
                     </td>

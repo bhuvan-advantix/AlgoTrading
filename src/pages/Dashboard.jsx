@@ -2,7 +2,7 @@ import React from "react";
 import Header from "../components/Header";
 import AiRecommendation from "../components/AiRecommendation";
 import EventAwareness from "../components/EventAwareness";
-import OpenPosition from "../components/OpenPosition";
+import OpenPositions from "../components/OpenPositions";
 import RiskSetup from "../components/RiskSetup";
 import Summary from "../components/Summary";
 import TradeLog from "../components/TradeLog";
@@ -14,7 +14,7 @@ const Dashboard = () => {
       <Header />
 
       {/* 🧩 Dashboard Main Content */}
-  <main className="p-4 sm:p-6 space-y-6">
+      <main className="p-4 sm:p-6 space-y-6">
         {/* Row 1: AI Recommendation + Event Awareness */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* AI Recommendation */}
@@ -41,7 +41,7 @@ const Dashboard = () => {
             <h2 className="text-xl font-semibold mb-4 text-indigo-400 sm:text-indigo-600">
               💼 Open Positions
             </h2>
-            <OpenPosition />
+            <OpenPositions />
           </section>
 
           {/* Risk Setup */}

@@ -148,7 +148,7 @@ export default function ChartSection({ symbol, quote }) {
         <div>
           <h3 className="text-xl font-bold text-white">{symbol}</h3>
           <p className="text-sm text-cyan-400">
-            {quote?.price ? `$${quote.price.toFixed(2)}` : '—'}
+            {quote?.price ? `${quote.currency === 'INR' ? '₹' : '$'}${quote.price.toFixed(2)}` : '—'}
             {quote?.change != null && (
               <span className={quote.change >= 0 ? 'text-green-400' : 'text-red-400'}>
                 {' '}({quote.change.toFixed(2)}%)

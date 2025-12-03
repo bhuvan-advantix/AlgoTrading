@@ -37,9 +37,12 @@ export default function TradeHistory() {
                 <th className="py-3 px-4">Date & Time</th>
                 <th className="py-3 px-4">Symbol</th>
                 <th className="py-3 px-4">Side</th>
-                <th className="py-3 px-4 text-right">Quantity</th>
+                <th className="py-3 px-4 text-right">Qty</th>
                 <th className="py-3 px-4 text-right">Price</th>
-                <th className="py-3 px-4 text-right">Total Amount</th>
+                <th className="py-3 px-4 text-right">Gross Amt</th>
+                <th className="py-3 px-4 text-right text-yellow-500">Brokerage</th>
+                <th className="py-3 px-4 text-right text-red-400">Taxes</th>
+                <th className="py-3 px-4 text-right text-emerald-400">Net Amount</th>
                 <th className="py-3 px-4 text-right">Status</th>
               </tr>
             </thead>
@@ -51,22 +54,30 @@ export default function TradeHistory() {
                   </td>
                   <td className="py-3 px-4 font-semibold text-white">{o.symbol}</td>
                   <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      o.side === 'BUY' 
-                        ? 'bg-emerald-600/20 text-emerald-300' 
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${o.side === 'BUY'
+                        ? 'bg-emerald-600/20 text-emerald-300'
                         : 'bg-rose-600/20 text-rose-300'
-                    }`}>
+                      }`}>
                       {o.side}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-slate-200">
-                    {o.qty.toFixed(6)}
+                    {o.qty.toFixed(2)}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-slate-200">
                     ₹{o.price.toFixed(2)}
                   </td>
-                  <td className="py-3 px-4 text-right font-mono font-semibold text-white">
+                  <td className="py-3 px-4 text-right font-mono text-slate-400">
                     ₹{o.amount.toFixed(2)}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono text-yellow-500">
+                    ₹{(o.brokerage || 0).toFixed(2)}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono text-red-400">
+                    ₹{(o.totalCharges || 0).toFixed(2)}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
+                    ₹{(o.netAmount || o.amount).toFixed(2)}
                   </td>
                   <td className="py-3 px-4 text-right text-xs text-emerald-400 font-semibold">
                     {o.status || 'FILLED'}
