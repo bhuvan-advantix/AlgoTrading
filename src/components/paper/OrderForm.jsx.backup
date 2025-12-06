@@ -1,0 +1,240 @@
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { subscribePrice, placeMarketOrder } from '../../utils/paperTradingStore';
+
+export default function OrderForm({ symbol, quote }) {
+  const [amount, setAmount] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [orderType, setOrderType] = useState('amount');
+  const [loading, setLoading] = useState(false);
+  const [livePrice, setLivePrice] = useState(quote?.price || null);
+  const [toast, setToast] = useState(null);
+
+  /* ---------------------------
+       Currency Formatter
+  --------------------------- */
+  const formatCurrencySymbol = useCallback((sym, price) => {
+    const cur = quote?.currency || (sym?.toUpperCase().endsWith('.NS') ? 'INR' : 'USD');
+    if (cur === 'INR') return `Γé╣${Number(price || 0).toFixed(2)}`;
+    return `$${Number(price || 0).toFixed(2)}`;
+  }, [quote]);
+
+  /* ---------------------------
+        Live Price Subscribe
+  --------------------------- */
+  useEffect(() => {
+    if (!symbol) return;
+    const unsubscribe = subscribePrice(symbol, (price) => setLivePrice(price));
+    return unsubscribe;
+  }, [symbol]);
+
+  /* ---------------------------
+        Sync Price from Quote
+  --------------------------- */
+  useEffect(() => {
+    if (quote?.price) setLivePrice(quote.price);
+  }, [quote?.price]);
+
+  /* ---------------------------
+        Calculation Logic
+  --------------------------- */
+  const programmaticRef = React.useRef(false);
+
+  // When amount changes ΓåÆ update qty
+  useEffect(() => {
+    if (programmaticRef.current) {
+      programmaticRef.current = false;
+      return;
+    }
+
+    if (livePrice && amount) {
+      programmaticRef.current = true;
+      const qty = Number(amount) / Number(livePrice);
+      setQuantity(qty.toFixed(8));
+    }
+  }, [amount, livePrice]);
+
+  // When qty changes ΓåÆ update amount
+  useEffect(() => {
+    if (programmaticRef.current) {
+      programmaticRef.current = false;
+      return;
+    }
+
+    if (livePrice && quantity) {
+      programmaticRef.current = true;
+      const amt = Number(quantity) * Number(livePrice);
+      setAmount(amt.toFixed(2));
+    }
+  }, [quantity, livePrice]);
+
+  /* ---------------------------
+        Toast
+  --------------------------- */
+  const showToast = (message, type = 'info', duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), duration);
+  };
+
+  /* ---------------------------
+         Submit Order
+  --------------------------- */
+  const handleSubmit = async (side) => {
+    if (!symbol) return showToast('No symbol selected', 'error');
+
+    if (orderType === 'amount' && (!amount || Number(amount) <= 0))
+      return showToast('Enter a valid amount', 'error');
+
+    if (orderType === 'quantity' && (!quantity || Number(quantity) <= 0))
+      return showToast('Enter a valid quantity', 'error');
+
+    setLoading(true);
+
+    try {
+      const result = placeMarketOrder({
+        symbol: symbol.toUpperCase(),
+        side: side.toUpperCase(),
+        amount: Number(amount || 0),
+        qty: Number(quantity || 0)
+      });
+
+      if (result?.success) {
+        const order = result.order;
+
+        showToast(
+          `${order.side} ${order.qty.toFixed(4)} @ ${formatCurrencySymbol(symbol, order.price)}`,
+          'success'
+        );
+
+        // clear inputs
+        setAmount('');
+        setQuantity('');
+
+        // dispatch global update
+        window.dispatchEvent(new CustomEvent('paper-trade-update', { detail: { order } }));
+        window.dispatchEvent(new CustomEvent('paper-order-confirmed', { detail: order }));
+      } else {
+        showToast(result?.reason || 'Order failed', 'error');
+      }
+    } catch (err) {
+      showToast('Order failed: ' + err.message, 'error');
+    }
+
+    setLoading(false);
+  };
+
+  /* ---------------------------
+         UI Rendering
+  --------------------------- */
+  const totalValue =
+    quantity && livePrice ? (Number(quantity) * Number(livePrice)).toFixed(2) : '0.00';
+
+  return (
+    <div className="bg-gradient-to-br from-slate-900/60 to-slate-800/40 p-4 rounded-xl border border-slate-700/30">
+      
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-white">Place Order</h3>
+        <div className="text-xs text-slate-400">
+          Live: {formatCurrencySymbol(symbol, livePrice) || 'ΓÇö'}
+        </div>
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`mb-3 px-3 py-2 rounded-lg text-sm font-medium ${
+            toast.type === 'success'
+              ? 'bg-emerald-600/30 text-emerald-200 border border-emerald-600/50'
+              : toast.type === 'error'
+              ? 'bg-rose-600/30 text-rose-200 border border-rose-600/50'
+              : 'bg-blue-600/30 text-blue-200 border border-blue-600/50'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      {/* Order Type Selector */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setOrderType('amount')}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+            orderType === 'amount'
+              ? 'bg-cyan-600/60 text-cyan-100'
+              : 'bg-slate-700/40 text-slate-300 hover:bg-slate-600/40'
+          }`}
+        >
+          Amount
+        </button>
+
+        <button
+          onClick={() => setOrderType('quantity')}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+            orderType === 'quantity'
+              ? 'bg-cyan-600/60 text-cyan-100'
+              : 'bg-slate-700/40 text-slate-300 hover:bg-slate-600/40'
+          }`}
+        >
+          Quantity
+        </button>
+      </div>
+
+      {/* Amount Input */}
+      {orderType === 'amount' ? (
+        <div className="mb-4">
+          <label className="text-xs text-slate-400 block mb-1">Amount (Γé╣)</label>
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Enter amount"
+            className="w-full px-3 py-2 bg-slate-900/50 text-white rounded-lg border border-slate-700/50 focus:border-cyan-600/50"
+          />
+        </div>
+      ) : (
+        <div className="mb-4">
+          <label className="text-xs text-slate-400 block mb-1">Quantity</label>
+          <input
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            placeholder="Enter quantity"
+            className="w-full px-3 py-2 bg-slate-900/50 text-white rounded-lg border border-slate-700/50 focus:border-cyan-600/50"
+          />
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="px-3 py-2 bg-slate-800/40 rounded-lg text-xs text-slate-300 mb-4">
+        <div className="flex justify-between">
+          <span>Qty</span>
+          <span className="font-medium">{quantity || '0'}</span>
+        </div>
+
+        <div className="flex justify-between mt-1">
+          <span>Total</span>
+          <span className="font-medium">Γé╣{totalValue}</span>
+        </div>
+      </div>
+
+      {/* Buttons */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => handleSubmit('buy')}
+          className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg hover:opacity-90"
+          disabled={loading || !symbol || (!amount && !quantity)}
+        >
+          {loading ? 'ProcessingΓÇª' : 'Buy'}
+        </button>
+
+        <button
+          onClick={() => handleSubmit('sell')}
+          className="flex-1 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 text-white font-semibold rounded-lg hover:opacity-90"
+          disabled={loading || !symbol || (!amount && !quantity)}
+        >
+          {loading ? 'ProcessingΓÇª' : 'Sell'}
+        </button>
+      </div>
+    </div>
+  );
+}

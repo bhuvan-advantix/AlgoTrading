@@ -147,9 +147,16 @@ export default function Portfolio() {
                 {portfolioData.map((pos) => {
                   const { symbol, quantity, avg_price, current_price, prev_close, market_value, unrealized_pnl, daily_pnl } = pos;
 
+                  // Check if this symbol has any AI orders
+                  const state = readState();
+                  const hasAIOrder = (state.orders || []).some(o => o.symbol === symbol && o.isAIOrder);
+
                   return (
                     <tr key={symbol} className="border-b border-slate-700/20 hover:bg-slate-700/20 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-white">{symbol}</td>
+                      <td className="py-3 px-4 font-semibold text-white">
+                        {hasAIOrder && <span className="mr-1 text-purple-400">🤖</span>}
+                        {symbol}
+                      </td>
                       <td className="py-3 px-4 text-right text-slate-200">{quantity?.toFixed(4)}</td>
                       <td className="py-3 px-4 text-right font-mono text-slate-300">₹{avg_price?.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right font-mono text-slate-200">

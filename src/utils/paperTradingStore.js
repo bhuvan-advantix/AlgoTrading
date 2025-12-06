@@ -1,4 +1,5 @@
 // src/utils/paperTradingStore.js
+import { calculateTransactionCharges } from './transactionCharges';
 const STORAGE_KEY = 'adv_paper_v2';
 
 export const defaultConfig = {
@@ -200,30 +201,33 @@ function calculateZerodhaCharges(type, quantity, price, product = 'CNC') {
   };
 }
 
-export function placeMarketOrder({ symbol, side, amount, qty, stopLoss, takeProfit }) {
+export function placeMarketOrder({ symbol, side, amount, qty, stopLoss, takeProfit, isAIOrder, executionPrice }) {
   let st = read() || initStore();
   const s = symbol.toUpperCase();
-  const price = st.prices[s]?.price;
+
+  // Use provided execution price OR fallback to store price
+  const price = executionPrice || st.prices[s]?.price;
 
   if (!price) return { success: false, reason: 'Live price unavailable' };
 
   const cfg = st.config;
   const usedQty = qty && qty > 0 ? qty : amountToQty(amount, price);
 
-  // Detect currency from symbol
-  const currency = (s.endsWith('.NS') || s.endsWith('.BO')) ? 'INR' : 'USD';
-
-  // Slippage simulation
+  // Slippage simulation (only if using store price, or apply to execution price too)
   const slippage = price * (Math.random() * cfg.slippagePct * 2 - cfg.slippagePct);
-  const fillPrice = Number((price + slippage).toFixed(2)); // Round price to 2 decimals for realism
+  const fillPrice = Number((price + slippage).toFixed(2));
 
-  // Calculate Taxes - Default to CNC (Delivery) for paper trading unless specified
-  // In a real app, we'd pass product type. Here we assume Delivery for simplicity or add a toggle.
-  // Let's assume Delivery (CNC) as it's the most common for investors.
-  const taxes = calculateZerodhaCharges(side, usedQty, fillPrice, 'CNC');
+  // Use the new global transaction charges calculator
+  const chargeDetails = calculateTransactionCharges(
+    s,
+    fillPrice,
+    usedQty,
+    side,
+    st.prices[s]?.exchange || ''
+  );
 
   // Check Funds
-  if (side === 'BUY' && st.wallet.cash < taxes.netAmount) {
+  if (side === 'BUY' && st.wallet.cash < chargeDetails.netAmount) {
     return { success: false, reason: 'Insufficient funds' };
   }
 
@@ -237,42 +241,45 @@ export function placeMarketOrder({ symbol, side, amount, qty, stopLoss, takeProf
 
   // Update Wallet
   if (side === 'BUY') {
-    st.wallet.cash -= taxes.netAmount;
+    st.wallet.cash -= chargeDetails.netAmount;
   } else {
-    st.wallet.cash += taxes.netAmount;
+    st.wallet.cash += chargeDetails.netAmount;
   }
 
   applyFillToPosition(st, s, side, usedQty, fillPrice, stopLoss, takeProfit);
 
-  st = read();
+
 
   const order = {
     id: 'o_' + Date.now(),
     ts: Date.now(),
     symbol: s,
     side,
-    qty: Number(usedQty), // Store as number
+    qty: Number(usedQty),
     price: fillPrice,
-    amount: Number((usedQty * fillPrice).toFixed(2)), // Gross Amount
-    commission: 0, // Deprecated in favor of detailed taxes
+    amount: Number(chargeDetails.grossAmount.toFixed(2)),
+    commission: 0,
     status: 'FILLED',
-    currency: currency, // Add currency field
+    currency: chargeDetails.currency,
+    currencySymbol: chargeDetails.currencySymbol,
     stopLoss: stopLoss || null,
     takeProfit: takeProfit || null,
-    // Add Tax Fields
-    brokerage: taxes.brokerage,
-    stt: taxes.stt,
-    exchangeCharges: taxes.exchangeCharges,
-    gst: taxes.gst,
-    sebiCharges: taxes.sebiCharges,
-    stampDuty: taxes.stampDuty,
-    dpCharges: taxes.dpCharges,
-    totalCharges: taxes.totalCharges,
-    netAmount: taxes.netAmount
+    // Store all charges
+    charges: chargeDetails.charges,
+    totalCharges: chargeDetails.totalCharges,
+    netAmount: chargeDetails.netAmount,
+    // AI Order metadata
+    isAIOrder: isAIOrder || false,
+    aiSymbol: isAIOrder ? '🤖' : null,
+    source: isAIOrder ? 'AI' : 'Manual',
+    tag: isAIOrder ? 'AI_TRADING' : null
   };
+
+  console.log(`📝 Order Created - Symbol: ${symbol}, Side: ${side}, isAIOrder: ${order.isAIOrder}, aiSymbol: ${order.aiSymbol}`);
 
   st.orders.unshift(order);
   write(st);
+  console.log(`💾 Order written to storage - checking first order:`, st.orders[0]);
   updateEquityHistory();
 
   return { success: true, order };
@@ -396,3 +403,5 @@ export function checkProtectiveOrders(symbol, currentPrice) {
     }));
   }
 }
+
+

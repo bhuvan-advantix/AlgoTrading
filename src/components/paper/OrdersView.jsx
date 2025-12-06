@@ -110,6 +110,7 @@ export default function OrdersView() {
             <tbody>
               <AnimatePresence>
                 {getFilteredOrders().map(order => {
+                  const isAI = order.isAIOrder === true || order.isAIOrder === 'true' || order.aiSymbol === '🤖' || order.tag === 'AI_TRADING' || order.source === 'AI';
                   const currencySymbol = order.currency
                     ? (order.currency === 'INR' ? '₹' : '$')
                     : ((order.symbol || '').toUpperCase().endsWith('.NS') || (order.symbol || '').toUpperCase().endsWith('.BO') ? '₹' : '$');
@@ -126,6 +127,7 @@ export default function OrdersView() {
                         {new Date(order.ts).toLocaleString()}
                       </td>
                       <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-white">
+                        {isAI && <span className="mr-1 text-purple-400">🤖</span>}
                         {order.symbol}
                       </td>
                       <td className="p-2 sm:p-4 text-center">
@@ -187,7 +189,7 @@ export default function OrdersView() {
               ['Date', 'Symbol', 'Type', 'Quantity', 'Price', 'Gross Amount', 'Brokerage', 'Taxes', 'Net Amount', 'Status'],
               ...getFilteredOrders().map(o => [
                 new Date(o.ts).toLocaleString(),
-                o.symbol,
+                (o.isAIOrder ? '🤖 ' : '') + o.symbol,
                 o.side,
                 Number(o.qty).toFixed(8),
                 Number(o.price).toFixed(2),

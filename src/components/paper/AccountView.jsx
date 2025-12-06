@@ -1000,7 +1000,11 @@ export default function AccountView() {
                   </td>
                 </tr>
               ) : (
-                orders.map((t) => {
+                orders.map((t, idx) => {
+                  // Robust AI check: check boolean, string 'true', symbol, tag, or source
+                  const isAI = t.isAIOrder === true || t.isAIOrder === 'true' || t.aiSymbol === '🤖' || t.tag === 'AI_TRADING' || t.source === 'AI';
+
+                  if (idx === 0) console.log(`📋 Order ${idx}: ${t.symbol} ${t.side} - isAI: ${isAI}`);
                   const isBuy = t.side === 'BUY';
                   const gross = Number(t.price) * Number(t.qty);
                   const brokerage = Number(t.brokerage || 0);
@@ -1014,8 +1018,14 @@ export default function AccountView() {
                       className={`border-b border-[#1e293b] ${isBuy ? 'text-green-400' : 'text-red-400'}`}
                     >
                       <td className="px-2 py-1">{new Date(t.ts).toLocaleString()}</td>
-                      <td className="px-2 py-1 font-semibold">{t.side}</td>
-                      <td className="px-2 py-1">{t.symbol}</td>
+                      <td className="px-2 py-1 font-semibold">
+                        {isAI && <span className="mr-1 text-purple-400">🤖</span>}
+                        {t.side}
+                      </td>
+                      <td className="px-2 py-1">
+                        {isAI && <span className="mr-1 text-purple-400">🤖</span>}
+                        {t.symbol}
+                      </td>
                       <td className="px-2 py-1 text-right">{formatQty(t.qty)}</td>
                       <td className="px-2 py-1 text-right">{currencySymbol}{Number(t.price).toFixed(2)}</td>
                       <td className="px-2 py-1 text-right">{currencySymbol}{gross.toFixed(2)}</td>

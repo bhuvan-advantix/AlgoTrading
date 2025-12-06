@@ -47,43 +47,49 @@ export default function TradeHistory() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((o, idx) => (
-                <tr key={o.id || idx} className="border-b border-slate-700/20 hover:bg-slate-700/20 transition-colors">
-                  <td className="py-3 px-4 text-slate-300 text-xs">
-                    {new Date(o.ts).toLocaleString('en-IN')}
-                  </td>
-                  <td className="py-3 px-4 font-semibold text-white">{o.symbol}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${o.side === 'BUY'
+              {orders.map((o, idx) => {
+                const isAI = o.isAIOrder === true || o.isAIOrder === 'true' || o.aiSymbol === '🤖' || o.tag === 'AI_TRADING' || o.source === 'AI';
+                return (
+                  <tr key={o.id || idx} className="border-b border-slate-700/20 hover:bg-slate-700/20 transition-colors">
+                    <td className="py-3 px-4 text-slate-300 text-xs">
+                      {new Date(o.ts).toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-white">
+                      {isAI && <span className="mr-1 text-purple-400">🤖</span>}
+                      {o.symbol}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${o.side === 'BUY'
                         ? 'bg-emerald-600/20 text-emerald-300'
                         : 'bg-rose-600/20 text-rose-300'
-                      }`}>
-                      {o.side}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono text-slate-200">
-                    {o.qty.toFixed(2)}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono text-slate-200">
-                    ₹{o.price.toFixed(2)}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono text-slate-400">
-                    ₹{o.amount.toFixed(2)}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono text-yellow-500">
-                    ₹{(o.brokerage || 0).toFixed(2)}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono text-red-400">
-                    ₹{(o.totalCharges || 0).toFixed(2)}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
-                    ₹{(o.netAmount || o.amount).toFixed(2)}
-                  </td>
-                  <td className="py-3 px-4 text-right text-xs text-emerald-400 font-semibold">
-                    {o.status || 'FILLED'}
-                  </td>
-                </tr>
-              ))}
+                        }`}>
+                        {o.side}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-slate-200">
+                      {o.qty.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-slate-200">
+                      ₹{o.price.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-slate-400">
+                      ₹{o.amount.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-yellow-500">
+                      ₹{(o.brokerage || 0).toFixed(2)}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-red-400">
+                      ₹{(o.totalCharges || 0).toFixed(2)}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
+                      ₹{(o.netAmount || o.amount).toFixed(2)}
+                    </td>
+                    <td className="py-3 px-4 text-right text-xs text-emerald-400 font-semibold">
+                      {o.status || 'FILLED'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
