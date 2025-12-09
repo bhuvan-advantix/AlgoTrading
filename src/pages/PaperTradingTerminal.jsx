@@ -7,6 +7,7 @@ import Portfolio from '../components/paper/Portfolio';
 import PortfolioSummary from '../components/paper/PortfolioSummary';
 import TradeHistory from '../components/paper/TradeHistory';
 import SearchBar from '../components/paper/SearchBar';
+import Footer from '../components/Footer';
 
 export default function PaperTradingTerminal() {
   const [activeTab, setActiveTab] = useState('trading');
@@ -111,8 +112,8 @@ export default function PaperTradingTerminal() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id
-                    ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-lg'
-                    : 'text-slate-300 hover:text-white'
+                  ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-lg'
+                  : 'text-slate-300 hover:text-white'
                   }`}
               >
                 {tab.label}
@@ -237,9 +238,7 @@ export default function PaperTradingTerminal() {
         </AnimatePresence>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-xs text-slate-500">
-          <p>Paper Trading Terminal • Simulated prices with {state.config?.tickIntervalSec}s updates • No real money involved</p>
-        </div>
+        <Footer />
       </div>
     </div>
   );

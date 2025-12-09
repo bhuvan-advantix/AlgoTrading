@@ -34,7 +34,7 @@ const RiskSetup = ({ risk = {}, setRisk }) => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         // Convert to float if value exists, otherwise handle as empty string/0
-        const numericValue = value === "" ? "" : parseFloat(value); 
+        const numericValue = value === "" ? "" : parseFloat(value);
         setRisk({ ...risk, [name]: numericValue });
     };
 
@@ -45,7 +45,7 @@ const RiskSetup = ({ risk = {}, setRisk }) => {
             </h2>
 
             <p className="text-sm text-gray-500 mb-6">
-                Configure the **hard limits** for the current trading day. Breaching the loss cap will trigger an **instant market-flattening halt** (Section 4, Advantix AGI Spec).
+                Configure the **hard limits** for the current trading day. Breaching the loss cap will trigger an **instant market-flattening halt** (Section 4, Pulse915 Spec).
             </p>
 
             {/* Daily Allocation */}

@@ -29,7 +29,7 @@ This automation, built in **n8n**, should parse new job alerts, calculate a fit 
 |--------|--------------|-------------|
 | **1. Email Ingestion** | Read new “Upwork job match” emails using Gmail IMAP node | `n8n Gmail` |
 | **2. Parsing & Extraction** | Extract job title, skills, and match % using regex / HTML parse | `n8n Code` (JS) |
-| **3. Scoring Logic** | Match extracted skills with Advantix AGI service tags | `n8n Function` |
+| **3. Scoring Logic** | Match extracted skills with PULSE915service tags | `n8n Function` |
 | **4. Shortlisting** | Retain jobs with score > 70% | `n8n Filter` |
 | **5. Proposal Generation** | Generate proposal using OpenAI API (GPT-4 / Gemini) | `n8n HTTP Request` |
 | **6. Output Storage** | Save responses to Google Sheets / Notion | `n8n Sheets` / `n8n Notion` |

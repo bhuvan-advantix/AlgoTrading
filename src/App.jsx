@@ -11,6 +11,7 @@ import PortfolioView from './components/paper/PortfolioView';
 import OrdersView from './components/paper/OrdersView';
 import StockSearchAI from './components/StockSearchAI';
 import { placeMarketOrder, readState } from './utils/paperTradingStore';
+import Footer from './components/Footer';
 
 // --- Global Config & Firebase Imports ---
 // IMPORTANT: These variables are provided by the canvas environment
@@ -105,16 +106,16 @@ const MOCK_DAILY_LOG = [
 const AppContext = createContext(null);
 
 const AppWrapper = () => {
-    const advantixState = useAdvantixState();
+    const pulse915State = usePulse915State();
     return (
-        <AppContext.Provider value={advantixState}>
-            <AdvantixApp />
+        <AppContext.Provider value={pulse915State}>
+            <Pulse915App />
         </AppContext.Provider>
     );
 };
 
 // Custom hook for managing application state and persistence
-const useAdvantixState = () => {
+const usePulse915State = () => {
     const [db, setDb] = useState(null);
     const [auth, setAuth] = useState(null);
     const [userId, setUserId] = useState(null);
@@ -222,9 +223,22 @@ const useAdvantixState = () => {
                 // Sort by timestamp if necessary as query is only partial
                 logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                 setRunLog(logs);
-                // Calculate daily P&L from logs (very simple calculation)
-                const currentPnl = logs.reduce((sum, log) => sum + (log.pnl || 0), 0);
-                setDailyPnl(currentPnl);
+
+                // Calculate daily P&L ONLY from today's completed trades (realized P&L)
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayTimestamp = today.getTime();
+
+                // Filter for today's EXIT trades (realized P&L only)
+                const todaysRealizedPnl = logs
+                    .filter(log => {
+                        const logDate = new Date(log.timestamp);
+                        return log.type === 'EXIT' && logDate >= today;
+                    })
+                    .reduce((sum, log) => sum + (log.pnl || 0), 0);
+
+                // Note: Unrealized daily P&L from open positions will be added from portfolio state
+                setDailyPnl(todaysRealizedPnl);
                 setTradeCount(logs.filter(log => log.type === 'ENTRY').length);
             }, (error) => {
                 console.error("Error listening to logs:", error);
@@ -618,7 +632,7 @@ const DashboardPage = () => {
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6 tracking-tight">Advantix AGI Algo Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6 tracking-tight">Pulse915 Algo Dashboard</h1>
 
             {/* Quick Order removed from the top banner - now placed in Control Panel (right column) for a professional layout */}
             {/* Zerodha Connection Banner */}
@@ -657,11 +671,12 @@ const DashboardPage = () => {
 
             {/* --- TOP BANNER STATS & EAL --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <Card title="Daily P&L" className="col-span-1 border-2 border-transparent hover:border-teal-500">
+                <Card title="Daily P&L (Realized)" className="col-span-1 border-2 border-transparent hover:border-teal-500">
                     <p className={`text-2xl sm:text-3xl font-extrabold ${dailyPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                         {formatCurrency(dailyPnl)}
                     </p>
-                    <p className="text-xs sm:text-sm text-gray-400 mt-1">Daily Cap: {formatCurrency(riskParams.dailyLossCap)}</p>
+                    <p className="text-xs sm:text-sm text-gray-400 mt-1">Today's closed trades only</p>
+                    <p className="text-xs text-gray-500">Daily Cap: {formatCurrency(riskParams.dailyLossCap)}</p>
                 </Card>
 
                 <Card title="Trades Executed" className="col-span-1 border-2 border-transparent hover:border-teal-500">
@@ -960,7 +975,7 @@ const AuthPage = () => {
             <div className="min-h-screen flex items-center justify-center bg-[#0b0e1b]">
                 <div className="text-white flex flex-col items-center">
                     <ZapIcon className="w-12 h-12 mb-4 animate-spin text-teal-400" />
-                    <p className="text-lg font-medium text-gray-300">Initializing Advantix AGI...</p>
+                    <p className="text-lg font-medium text-gray-300">Initializing Pulse915...</p>
                 </div>
             </div>
         );
@@ -1167,7 +1182,7 @@ const AuthPage = () => {
 
 // --- MAIN APPLICATION STRUCTURE ---
 
-const AdvantixApp = () => {
+const Pulse915App = () => {
     const {
         currentPage, setCurrentPage, isMobileMenuOpen, setIsMobileMenuOpen,
         alert, alertUser, isAuthReady, isKiteConnected, userId,
@@ -1367,7 +1382,7 @@ const AdvantixApp = () => {
         const [localAiPicks, setLocalAiPicks] = useState(aiRecommendations || []);
         const [aiPrefs, setAiPrefs] = useState(() => {
             try {
-                const raw = localStorage.getItem('advantix_ai_prefs');
+                const raw = localStorage.getItem('pulse915_ai_prefs');
                 return raw ? JSON.parse(raw) : { enabled: true, windowStart: '09:05', windowEnd: '09:15', model: 'gemini-small' };
             } catch (e) {
                 return { enabled: true, windowStart: '09:05', windowEnd: '09:15', model: 'gemini-small' };
@@ -1478,7 +1493,7 @@ const AdvantixApp = () => {
 
         const saveAiPrefs = () => {
             try {
-                localStorage.setItem('advantix_ai_prefs', JSON.stringify(aiPrefs));
+                localStorage.setItem('pulse915_ai_prefs', JSON.stringify(aiPrefs));
                 alertUser({ type: 'success', message: 'AI preferences saved.' });
             } catch (err) {
                 console.error('Save AI prefs error:', err);
@@ -1576,8 +1591,8 @@ const AdvantixApp = () => {
                                 <span className="text-xs text-gray-400">to</span>
                                 <input type="time" value={aiPrefs.windowEnd} onChange={(e) => setAiPrefs(prev => ({ ...prev, windowEnd: e.target.value }))} className="w-full sm:w-auto bg-gray-800 border border-gray-700 rounded-md p-2 text-teal-300" />
                                 <select value={aiPrefs.model} onChange={(e) => setAiPrefs(prev => ({ ...prev, model: e.target.value }))} className="w-full sm:w-auto sm:ml-2 bg-gray-800 border border-gray-700 rounded-md p-2 text-teal-300">
-                                    <option value="gemini-small">Advantix AGI (fast)</option>
-                                    <option value="gemini-medium">Advantix AGI (balanced)</option>
+                                    <option value="gemini-small">Pulse915 (fast)</option>
+                                    <option value="gemini-medium">Pulse915 (balanced)</option>
                                 </select>
                             </div>
 
@@ -1637,9 +1652,9 @@ const AdvantixApp = () => {
             <nav className={`hidden lg:flex flex-col w-64 bg-gray-800 border-r border-gray-700 shadow-xl`}>
                 <div className="p-6 border-b border-gray-700">
                     <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-teal-400 tracking-wider">
-                        ADVANTIX AGI
+                        PULSE915
                     </span>
-                    <p className="text-xs mt-1 text-gray-400">Advantix AGI | v1.1</p>
+                    <p className="text-xs mt-1 text-gray-400">PULSE915| v1.1</p>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                     {navItems.map((item) => (
@@ -1672,13 +1687,13 @@ const AdvantixApp = () => {
                         <div className="p-4 border-b border-gray-700">
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-teal-400 tracking-wider">
-                                    ADVANTIX AGI
+                                    PULSE915
                                 </span>
                                 <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 hover:text-white">
                                     <XCircleIcon className="w-6 h-6" />
                                 </button>
                             </div>
-                            <p className="text-xs text-gray-400">Advantix AGI | v1.1</p>
+                            <p className="text-xs text-gray-400">PULSE915| v1.1</p>
                         </div>
 
                         {/* Navigation Items */}
@@ -1726,7 +1741,7 @@ const AdvantixApp = () => {
                     </span>
                     {/* Tablet: Full title */}
                     <span className="hidden sm:block text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-teal-500 tracking-wider">
-                        ADVANTIX AGI
+                        PULSE915
                     </span>
                     {/* Kite Status Button is shown on tablets and up for mobile view, but not on xs screen */}
                     <div className="hidden sm:block flex-shrink-0">
@@ -1739,6 +1754,9 @@ const AdvantixApp = () => {
                 {/* Main Content */}
                 <main className="flex-1 overflow-y-auto custom-scrollbar">
                     {renderPage()}
+
+                    {/* Footer - Appears at end of content when scrolled to bottom */}
+                    <Footer />
                 </main>
 
                 {/* Order Confirmation Modal */}

@@ -20,7 +20,7 @@ function EventAwareness() {
   });
   const [loading, setLoading] = useState(false);
 
-  // Dynamic styling based on volatility regime (Aligned with Advantix AGI risk levels)
+  // Dynamic styling based on volatility regime (Aligned with PULSE915risk levels)
   const regimeStyle = {
     Calm: "bg-green-500/10 text-green-700 border-green-500 shadow-green-200/50",
     Normal: "bg-blue-500/10 text-blue-700 border-blue-500 shadow-blue-200/50",
@@ -153,7 +153,7 @@ function EventAwareness() {
         {loading ? (
           <div className="flex items-center space-x-3 text-blue-600 dark:text-blue-400 font-semibold py-1">
             <Loader className="animate-spin w-5 h-5" />
-            <span>Analyzing global context for Advantix AGI...</span>
+            <span>Analyzing global context for Pulse915...</span>
           </div>
         ) : marketState.regime ? (
           <div className="space-y-6">

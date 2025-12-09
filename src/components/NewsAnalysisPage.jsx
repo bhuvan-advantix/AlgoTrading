@@ -272,7 +272,7 @@ const NewsAnalysisPage = () => {
                     <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                         <ZapIcon className="w-10 h-10 text-teal-400 animate-pulse" />
                         <p className="mt-4 text-lg font-medium">Analyzing the latest Finnhub articles...</p>
-                        <p className="text-sm">Using Advantix AGI LLM for structured financial assessment.</p>
+                        <p className="text-sm">Using Pulse915 LLM for structured financial assessment.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">

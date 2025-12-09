@@ -33,7 +33,7 @@ export function initStore() {
     wallet: { cash: defaultConfig.startingBalance },
     positions: {},
     orders: [],
-    watchlist: ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'AAPL'],
+    watchlist: [],
     prices: {}, // ONLY Yahoo/real data will fill this
     equityHistory: []
   };

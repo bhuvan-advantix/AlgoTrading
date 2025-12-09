@@ -1,7 +1,7 @@
 // src/utils/paperStore.js
 // Lightweight store that persists to localStorage and talks to backend for quotes/charts
 import { MARKET_API_URL } from '../config';
-const STORAGE_KEY = 'advantix_paper_v3';
+const STORAGE_KEY = 'pulse915_paper_v3';
 
 export const defaultConfig = {
   startingBalance: 100000,

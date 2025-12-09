@@ -56,23 +56,41 @@ router.post('/portfolio', async (req, res) => {
             let prevClose = null;
 
             if (quote) {
-                currentPrice = quote.regularMarketPrice;
-                prevClose = quote.regularMarketPreviousClose;
+                // Try multiple fields for current price
+                currentPrice = quote.regularMarketPrice || quote.price || quote.currentPrice;
+
+                // Try multiple fields for previous close
+                prevClose = quote.regularMarketPreviousClose || quote.previousClose || quote.chartPreviousClose;
+
+                // If prevClose is still null, estimate it from current price and change
+                if (prevClose === null && currentPrice !== null && quote.regularMarketChangePercent !== undefined) {
+                    const changePercent = quote.regularMarketChangePercent / 100;
+                    prevClose = currentPrice / (1 + changePercent);
+                }
             }
 
             // Calculations
             let marketValue = 0;
             let unrealizedPnl = 0;
-            let dailyPnl = null;
+            let dailyPnl = 0; // Default to 0 instead of null
 
-            if (currentPrice !== null) {
+            if (currentPrice !== null && currentPrice > 0) {
                 marketValue = currentPrice * quantity;
+
+                // Unrealized P&L = (Current Price - Average Buy Price) × Quantity
                 unrealizedPnl = (currentPrice - avgPrice) * quantity;
 
-                if (prevClose !== null) {
+                // Daily P&L = (Current Price - Previous Close) × Quantity
+                if (prevClose !== null && prevClose > 0) {
                     dailyPnl = (currentPrice - prevClose) * quantity;
+                } else {
+                    // If no previous close, daily P&L is 0 (no change from yesterday)
+                    dailyPnl = 0;
                 }
             }
+
+            // Log for debugging
+            console.log(`[Portfolio] ${sym}: Current=${currentPrice}, PrevClose=${prevClose}, Qty=${quantity}, DailyPnL=${dailyPnl}, UnrealizedPnL=${unrealizedPnl}`);
 
             return {
                 symbol: sym,

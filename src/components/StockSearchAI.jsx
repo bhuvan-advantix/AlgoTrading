@@ -54,7 +54,7 @@ export default function StockSearchAI() {
 
   // Backend proxy endpoints (backend must be running on port 5000)
   // Hosted n8n endpoints
-  const LOCAL_URL = 'https://bhuvan21.app.n8n.cloud/webhook/stock-advice';
+  const LOCAL_URL = 'http://localhost:5678/webhook/stock-advice';
   const GLOBAL_URL = 'https://bhuvan21.app.n8n.cloud/webhook/globalstock-advice';
 
   async function fetchAnalysis(url) {

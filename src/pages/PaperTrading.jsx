@@ -8,6 +8,7 @@ import TradeHistory from '../components/paper/TradeHistory';
 import PerformanceSummary from '../components/paper/PerformanceSummary';
 import OrdersView from '../components/paper/OrdersView';
 import { initStore, readState, subscribePrice, resetSession, exportState } from '../utils/paperTradingStore';
+import Footer from '../components/Footer';
 
 const tabs = [
   { id: 'trade', label: 'Trading Terminal' },
@@ -123,6 +124,9 @@ export default function PaperTrading() {
           {activeTab === 'orders' && <OrdersView />}
           {activeTab === 'account' && <div>Account Content</div>}
         </motion.div>
+
+        {/* Footer */}
+        <Footer />
       </div>
     </div>
   );

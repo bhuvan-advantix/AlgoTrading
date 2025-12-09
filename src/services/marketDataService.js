@@ -62,14 +62,40 @@ class MarketDataService {
         return {
           price: data.currentPrice,
           changePercent: parseFloat(data.dailyChangePct),
+          previousClose: data.previousClose || null,
           symbol: data.symbol,
-          currency: data.currency || 'USD'
+          currency: data.currency || 'USD',
+          volume: data.raw?.volume || 0,
+          dayHigh: data.raw?.dayHigh || data.currentPrice,
+          dayLow: data.raw?.dayLow || data.currentPrice,
+          open: data.raw?.open || data.currentPrice
         };
       }
       return null;
     } catch (error) {
       console.error('Quote error:', error);
       return null;
+    }
+  }
+
+  /* -----------------------------------------
+     SEARCH STOCKS
+  ----------------------------------------- */
+  static async searchStocks(query) {
+    try {
+      const response = await fetch(`${this.API_BASE}/search?query=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      if (data.ok && data.results) {
+        return data.results.map(item => ({
+          symbol: item.symbol,
+          name: item.name || item.longName || item.symbol,
+          exchange: item.exchange || item.exchDisp || 'N/A'
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Search error:', error);
+      return [];
     }
   }
 

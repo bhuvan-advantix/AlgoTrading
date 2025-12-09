@@ -1,4 +1,4 @@
-// API utilities for Advantix AGI Trading Platform
+// API utilities for PULSE915Trading Platform
 import { TRADING_WINDOW, API_CONFIG } from './constants';
 
 /**
@@ -46,15 +46,15 @@ export const handleApiError = (error, context) => {
  */
 export const handleApiResponse = async (response, context) => {
     const data = await response.json();
-    
+
     if (!response.ok) {
         throw new Error(data.error || `${context} failed with status ${response.status}`);
     }
-    
+
     if (!data.success) {
         throw new Error(data.error || `${context} operation failed`);
     }
-    
+
     return data.data;
 };
 

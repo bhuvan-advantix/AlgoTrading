@@ -49,6 +49,17 @@ export default function TradeHistory() {
             <tbody>
               {orders.map((o, idx) => {
                 const isAI = o.isAIOrder === true || o.isAIOrder === 'true' || o.aiSymbol === '🤖' || o.tag === 'AI_TRADING' || o.source === 'AI';
+
+                // Extract charges from charges object
+                const brokerage = o.charges?.brokerage || 0;
+                const stt = o.charges?.stt || 0;
+                const exchangeCharges = o.charges?.exchangeCharges || 0;
+                const gst = o.charges?.gst || 0;
+                const sebiCharges = o.charges?.sebiCharges || 0;
+                const stampDuty = o.charges?.stampDuty || 0;
+                const dpCharges = o.charges?.dpCharges || 0;
+                const taxes = stt + exchangeCharges + gst + sebiCharges + stampDuty + dpCharges;
+
                 return (
                   <tr key={o.id || idx} className="border-b border-slate-700/20 hover:bg-slate-700/20 transition-colors">
                     <td className="py-3 px-4 text-slate-300 text-xs">
@@ -76,10 +87,10 @@ export default function TradeHistory() {
                       ₹{o.amount.toFixed(2)}
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-yellow-500">
-                      ₹{(o.brokerage || 0).toFixed(2)}
+                      ₹{brokerage.toFixed(2)}
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-red-400">
-                      ₹{(o.totalCharges || 0).toFixed(2)}
+                      ₹{taxes.toFixed(2)}
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
                       ₹{(o.netAmount || o.amount).toFixed(2)}

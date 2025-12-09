@@ -45,20 +45,19 @@ const AppLayout = () => {
             <nav className="hidden lg:flex flex-col w-64 bg-gray-800 border-r border-gray-700 shadow-xl">
                 <div className="p-6 border-b border-gray-700">
                     <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-teal-400 tracking-wider">
-                        ADVANTIX AGI
+                        PULSE915
                     </span>
-                    <p className="text-xs mt-1 text-gray-400">Advantix AGI | v1.1</p>
+                    <p className="text-xs mt-1 text-gray-400">PULSE915| v1.1</p>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                     {navItems.map((item) => (
                         <button
                             key={item.page}
                             onClick={() => handleNavigate(item.page)}
-                            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 ${
-                                currentPage === item.page
-                                    ? 'bg-teal-600/30 text-teal-400 font-semibold border border-teal-500'
-                                    : 'text-gray-300 hover:bg-gray-700/50'
-                            }`}
+                            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 ${currentPage === item.page
+                                ? 'bg-teal-600/30 text-teal-400 font-semibold border border-teal-500'
+                                : 'text-gray-300 hover:bg-gray-700/50'
+                                }`}
                         >
                             <item.icon className="w-5 h-5 mr-3" />
                             {item.name}
@@ -99,9 +98,8 @@ const AppLayout = () => {
 
                 {/* Global Alert */}
                 {alert && (
-                    <div className={`fixed bottom-4 right-4 z-50 p-4 rounded-xl shadow-2xl transition-all duration-300 transform ${
-                        alert.type === 'success' ? 'bg-green-600' : alert.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
-                    }`}>
+                    <div className={`fixed bottom-4 right-4 z-50 p-4 rounded-xl shadow-2xl transition-all duration-300 transform ${alert.type === 'success' ? 'bg-green-600' : alert.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+                        }`}>
                         <div className="flex items-center text-white">
                             {alert.type === 'success' && <CheckCircleIcon className="w-5 h-5 mr-2" />}
                             {alert.type === 'error' && <XCircleIcon className="w-5 h-5 mr-2" />}

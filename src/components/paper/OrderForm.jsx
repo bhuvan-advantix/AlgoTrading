@@ -383,10 +383,95 @@ export default function OrderForm({ symbol, quote }) {
             console.error(`❌ AI order failed for ${stockSymbol}: ${reason}`, result);
           }
         } else {
-          setAiTradingLogs(prev => [...prev, {
-            time: new Date().toLocaleTimeString(),
-            message: `⚠️ Live AI Trading not fully enabled in this demo for safety.`
-          }]);
+          // Live Trading Mode - Place real orders via Zerodha
+          const kiteUserId = localStorage.getItem('kiteUserId');
+          if (!kiteUserId) {
+            setAiTradingLogs(prev => [...prev, {
+              time: new Date().toLocaleTimeString(),
+              message: `❌ Zerodha not connected. Please connect your account first.`
+            }]);
+            showToast('⚠️ Please connect your Zerodha account first', 'error', 4000);
+            continue;
+          }
+
+          const stockInfo = stockData[stockSymbol] || { price: 1000, trend: 'neutral' };
+          const currentPrice = stockInfo.price;
+          const qty = Math.floor(perTradeAmount / currentPrice);
+
+          if (qty <= 0) {
+            setAiTradingLogs(prev => [...prev, {
+              time: new Date().toLocaleTimeString(),
+              message: `⚠️ Skipped ${stockSymbol}: Insufficient budget for 1 share`
+            }]);
+            continue;
+          }
+
+          const kiteSymbol = stockSymbol.split('.')[0];
+          const backendUrl = window.location.hostname === 'localhost'
+            ? 'http://localhost:5000'
+            : 'https://algotrading-2sbm.onrender.com';
+
+          try {
+            const response = await fetch(`${backendUrl}/api/kite/order`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-user-id': kiteUserId
+              },
+              body: JSON.stringify({
+                exchange: stockSymbol.toUpperCase().includes('.NS') ? 'NSE' : 'BSE',
+                tradingsymbol: kiteSymbol,
+                transaction_type: 'BUY',
+                quantity: qty,
+                order_type: aiConfig.orderType === 'limit' ? 'LIMIT' : 'MARKET',
+                product: aiConfig.strategy === 'intraday' ? 'MIS' : 'CNC',
+                ...(aiConfig.orderType === 'limit' && { price: currentPrice })
+              })
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(errorText || `Server error: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+              setAiTradingLogs(prev => [...prev, {
+                time: new Date().toLocaleTimeString(),
+                message: `✅ 🤖 LIVE BUY ${kiteSymbol}: ${qty} shares @ ₹${currentPrice.toFixed(2)}`
+              }]);
+
+              setAiSessionOrders(prev => {
+                const existing = prev.find(o => o.symbol === stockSymbol);
+                if (existing) {
+                  return prev.map(o => o.symbol === stockSymbol ? { ...o, qty: o.qty + qty } : o);
+                } else {
+                  return [...prev, { symbol: stockSymbol, qty: qty }];
+                }
+              });
+
+              showToast(`✅ 🤖 LIVE Order ${i + 1}/${finalStocks.length}: BUY ${kiteSymbol} - ${qty} shares`, 'success', 3000);
+              window.dispatchEvent(new CustomEvent('zerodha-order-placed', { detail: result }));
+            } else {
+              let errorMsg = result.error || result.message || 'Order rejected';
+              setAiTradingLogs(prev => [...prev, {
+                time: new Date().toLocaleTimeString(),
+                message: `❌ Failed: ${kiteSymbol} - ${errorMsg}`
+              }]);
+              showToast(`❌ AI Live Order Failed: ${kiteSymbol} - ${errorMsg}`, 'error');
+            }
+          } catch (fetchError) {
+            let errorMsg = fetchError.message;
+            if (errorMsg.includes('fetch') || errorMsg.includes('Failed to fetch')) {
+              errorMsg = 'Cannot connect to server';
+            }
+            setAiTradingLogs(prev => [...prev, {
+              time: new Date().toLocaleTimeString(),
+              message: `❌ Error: ${kiteSymbol} - ${errorMsg}`
+            }]);
+            showToast(`❌ AI Live Order Error: ${errorMsg}`, 'error');
+          }
         }
       } catch (err) {
         setAiTradingLogs(prev => [...prev, {

@@ -14,8 +14,8 @@ export default function AccountPanel({ state, refresh }) {
         <div className="mt-2">Current Balance: <strong>₹{wallet.cash.toFixed(2)}</strong></div>
         <div>Equity: <strong>₹{equity.toFixed(2)}</strong></div>
         <div className="mt-3 flex gap-2">
-          <button onClick={()=>{ const amt = Number(prompt('Add amount (₹)', '10000')); if(!isNaN(amt)){ const s=getState(); s.wallet.cash+=amt; localStorage.setItem('advantix_paper_v3', JSON.stringify(s)); refresh(); }}} className="px-3 py-1 rounded bg-cyan-600">Add Funds</button>
-          <button onClick={()=>{ if(confirm('Reset session?')){ localStorage.removeItem('advantix_paper_v3'); refresh(); } }} className="px-3 py-1 rounded bg-rose-500">Reset</button>
+          <button onClick={() => { const amt = Number(prompt('Add amount (₹)', '10000')); if (!isNaN(amt)) { const s = getState(); s.wallet.cash += amt; localStorage.setItem('pulse915_paper_v3', JSON.stringify(s)); refresh(); } }} className="px-3 py-1 rounded bg-cyan-600">Add Funds</button>
+          <button onClick={() => { if (confirm('Reset session?')) { localStorage.removeItem('pulse915_paper_v3'); refresh(); } }} className="px-3 py-1 rounded bg-rose-500">Reset</button>
         </div>
       </div>
     </div>

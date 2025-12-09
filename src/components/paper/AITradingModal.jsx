@@ -9,55 +9,44 @@ export default function AITradingModal({
     isActive,
     logs
 }) {
-    // All hooks MUST be called before any conditional returns
-    const [showFilters, setShowFilters] = useState(false);
+    const [currentStep, setCurrentStep] = useState(1);
+    const [suggestedStocks, setSuggestedStocks] = useState([]);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [declinedStocks, setDeclinedStocks] = useState([]);
+    const [stockPool, setStockPool] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
-    const [aiSuggestions, setAiSuggestions] = useState([]);
-    const [isGenerating, setIsGenerating] = useState(false);
+    const [approvedStocks, setApprovedStocks] = useState([]);
+    const [stockQuantities, setStockQuantities] = useState({});
 
-    // Generate AI suggestions (mock data for now - can be replaced with real API)
-    const generateAISuggestions = () => {
-        setIsGenerating(true);
-        setAiSuggestions([]);
+    // Complete stock pool - expanded list
+    const allStocksPool = [
+        { symbol: 'RELIANCE.NS', name: 'Reliance Industries', price: 2456.75, change: 1.25, aiScore: 92, reason: 'Strong momentum, high volume' },
+        { symbol: 'TCS.NS', name: 'Tata Consultancy Services', price: 3542.30, change: 0.85, aiScore: 88, reason: 'Stable growth, good fundamentals' },
+        { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', price: 1678.90, change: -0.45, aiScore: 85, reason: 'Banking sector leader' },
+        { symbol: 'INFY.NS', name: 'Infosys', price: 1456.20, change: 3.12, aiScore: 90, reason: 'IT sector strength' },
+        { symbol: 'ICICIBANK.NS', name: 'ICICI Bank', price: 1089.45, change: 1.23, aiScore: 87, reason: 'Good technical setup' },
+        { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel', price: 1523.60, change: 2.56, aiScore: 78, reason: 'Telecom recovery' },
+        { symbol: 'AXISBANK.NS', name: 'Axis Bank', price: 1123.50, change: -1.12, aiScore: 84, reason: 'Value opportunity' },
+        { symbol: 'TATAMOTORS.NS', name: 'Tata Motors', price: 789.30, change: 2.34, aiScore: 86, reason: 'Auto sector momentum' },
+        { symbol: 'WIPRO.NS', name: 'Wipro', price: 456.80, change: -1.45, aiScore: 75, reason: 'IT services growth' },
+        { symbol: 'SBIN.NS', name: 'State Bank of India', price: 623.45, change: 1.89, aiScore: 83, reason: 'Banking sector strength' },
+        { symbol: 'LT.NS', name: 'Larsen & Toubro', price: 3234.50, change: 2.12, aiScore: 89, reason: 'Infrastructure boom' },
+        { symbol: 'MARUTI.NS', name: 'Maruti Suzuki', price: 9876.20, change: 0.67, aiScore: 81, reason: 'Auto sector leader' },
+        { symbol: 'SUNPHARMA.NS', name: 'Sun Pharma', price: 1234.90, change: 1.45, aiScore: 80, reason: 'Pharma sector growth' },
+        { symbol: 'TITAN.NS', name: 'Titan Company', price: 3456.30, change: 2.89, aiScore: 87, reason: 'Consumer goods strength' },
+        { symbol: 'KOTAKBANK.NS', name: 'Kotak Mahindra Bank', price: 1789.60, change: 0.95, aiScore: 86, reason: 'Private banking growth' },
+        { symbol: 'ASIANPAINT.NS', name: 'Asian Paints', price: 2987.40, change: 1.67, aiScore: 82, reason: 'Paint sector leader' },
+        // Lower priced stocks for smaller budgets
+        { symbol: 'ITC.NS', name: 'ITC Limited', price: 456.30, change: 0.89, aiScore: 79, reason: 'FMCG sector stability' },
+        { symbol: 'POWERGRID.NS', name: 'Power Grid Corp', price: 289.50, change: 1.23, aiScore: 77, reason: 'Utility sector strength' },
+        { symbol: 'NTPC.NS', name: 'NTPC Limited', price: 345.80, change: 0.67, aiScore: 76, reason: 'Power sector growth' },
+        { symbol: 'COALINDIA.NS', name: 'Coal India', price: 412.90, change: -0.45, aiScore: 74, reason: 'Energy sector play' },
+    ];
 
-        // Simulate AI analysis
-        setTimeout(() => {
-            const suggestions = [
-                { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', price: 2456.75, change: 1.25, volume: '12.5M', marketCap: '16.5L Cr', pe: 24.5, recommendation: 'Strong Buy', aiScore: 92, sector: 'Energy' },
-                { symbol: 'TCS', name: 'Tata Consultancy Services', price: 3542.30, change: 0.85, volume: '8.2M', marketCap: '12.8L Cr', pe: 28.2, recommendation: 'Buy', aiScore: 88, sector: 'IT' },
-                { symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', price: 1678.90, change: -0.45, volume: '15.3M', marketCap: '9.2L Cr', pe: 19.8, recommendation: 'Buy', aiScore: 85, sector: 'Banking' },
-                { symbol: 'INFY', name: 'Infosys Ltd', price: 1456.20, change: 3.12, volume: '10.1M', marketCap: '6.1L Cr', pe: 26.4, recommendation: 'Strong Buy', aiScore: 90, sector: 'IT' },
-                { symbol: 'ICICIBANK', name: 'ICICI Bank Ltd', price: 1089.45, change: 1.23, volume: '18.7M', marketCap: '7.6L Cr', pe: 18.2, recommendation: 'Buy', aiScore: 87, sector: 'Banking' },
-                { symbol: 'BHARTIARTL', name: 'Bharti Airtel Ltd', price: 1523.60, change: 2.56, volume: '9.4M', marketCap: '8.9L Cr', pe: 45.3, recommendation: 'Hold', aiScore: 78, sector: 'Telecom' },
-                { symbol: 'WIPRO', name: 'Wipro Ltd', price: 456.80, change: -1.45, volume: '7.2M', marketCap: '2.5L Cr', pe: 22.1, recommendation: 'Sell', aiScore: 42, sector: 'IT' },
-                { symbol: 'AXISBANK', name: 'Axis Bank Ltd', price: 1123.50, change: -1.12, volume: '11.8M', marketCap: '3.5L Cr', pe: 14.6, recommendation: 'Buy', aiScore: 84, sector: 'Banking' }
-            ];
-
-            // Apply filters
-            let filtered = suggestions;
-            if (config.priceMin) {
-                filtered = filtered.filter(s => s.price >= Number(config.priceMin));
-            }
-            if (config.priceMax) {
-                filtered = filtered.filter(s => s.price <= Number(config.priceMax));
-            }
-            if (config.marketTrend !== 'any') {
-                if (config.marketTrend === 'bullish') {
-                    filtered = filtered.filter(s => s.change > 0);
-                } else if (config.marketTrend === 'bearish') {
-                    filtered = filtered.filter(s => s.change < 0);
-                }
-            }
-
-            filtered.sort((a, b) => b.aiScore - a.aiScore);
-            setAiSuggestions(filtered.slice(0, 8));
-            setIsGenerating(false);
-        }, 1000);
-    };
-
-    // Search stocks
-    const handleSearch = (query) => {
+    // Search stocks using real API
+    const handleSearch = async (query) => {
+        console.log('🔍 Search triggered:', query);
         setSearchQuery(query);
 
         if (query.length < 2) {
@@ -65,482 +54,384 @@ export default function AITradingModal({
             return;
         }
 
-        // Expanded mock search results
-        const allStocks = [
-            { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', exchange: 'NSE' },
-            { symbol: 'TCS', name: 'Tata Consultancy Services', exchange: 'NSE' },
-            { symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', exchange: 'NSE' },
-            { symbol: 'INFY', name: 'Infosys Ltd', exchange: 'NSE' },
-            { symbol: 'ICICIBANK', name: 'ICICI Bank Ltd', exchange: 'NSE' },
-            { symbol: 'BHARTIARTL', name: 'Bharti Airtel Ltd', exchange: 'NSE' },
-            { symbol: 'WIPRO', name: 'Wipro Ltd', exchange: 'NSE' },
-            { symbol: 'AXISBANK', name: 'Axis Bank Ltd', exchange: 'NSE' },
-            { symbol: 'SBIN', name: 'State Bank of India', exchange: 'NSE' },
-            { symbol: 'LT', name: 'Larsen & Toubro Ltd', exchange: 'NSE' },
-            { symbol: 'TATAMOTORS', name: 'Tata Motors Ltd', exchange: 'NSE' },
-            { symbol: 'MARUTI', name: 'Maruti Suzuki India Ltd', exchange: 'NSE' },
-            { symbol: 'ADANIENT', name: 'Adani Enterprises Ltd', exchange: 'NSE' },
-            { symbol: 'SUNPHARMA', name: 'Sun Pharmaceutical Industries', exchange: 'NSE' },
-            { symbol: 'TITAN', name: 'Titan Company Ltd', exchange: 'NSE' }
-        ];
+        try {
+            console.log('📡 Fetching search results for:', query);
+            // Use MarketDataService for real search
+            const MarketDataService = (await import('../../services/marketDataService')).default;
+            const results = await MarketDataService.searchStocks(query);
+            console.log('✅ Search API returned:', results);
 
-        const results = allStocks.filter(stock =>
-            stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
-            stock.name.toLowerCase().includes(query.toLowerCase())
-        ).slice(0, 5);
+            if (!results || results.length === 0) {
+                console.log('⚠️ No results from API, using fallback');
+                // Fallback to local search
+                const localResults = allStocksPool.filter(stock =>
+                    stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
+                    stock.name.toLowerCase().includes(query.toLowerCase())
+                ).slice(0, 5);
+                console.log('📋 Local results:', localResults);
+                setSearchResults(localResults);
+                return;
+            }
 
-        setSearchResults(results);
+            // Fetch live prices for search results
+            console.log('💰 Fetching prices for results...');
+            const resultsWithPrices = await Promise.all(
+                results.slice(0, 5).map(async (r) => {
+                    try {
+                        const quote = await MarketDataService.getQuote(r.symbol);
+                        return {
+                            symbol: r.symbol,
+                            name: r.name || r.symbol,
+                            price: quote?.price || 100,
+                            change: quote?.changePercent || 0,
+                            aiScore: 75,
+                            reason: 'User selected stock'
+                        };
+                    } catch (error) {
+                        console.log(`⚠️ Price fetch failed for ${r.symbol}, using default`);
+                        return {
+                            symbol: r.symbol,
+                            name: r.name || r.symbol,
+                            price: 100,
+                            change: 0,
+                            aiScore: 75,
+                            reason: 'User selected stock'
+                        };
+                    }
+                })
+            );
+
+            console.log('✅ Final search results with prices:', resultsWithPrices);
+            setSearchResults(resultsWithPrices);
+        } catch (error) {
+            console.error('❌ Search error:', error);
+            // Fallback to local search
+            const results = allStocksPool.filter(stock =>
+                stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
+                stock.name.toLowerCase().includes(query.toLowerCase())
+            ).slice(0, 5);
+            console.log('📋 Fallback local results:', results);
+            setSearchResults(results);
+        }
     };
 
+    // Add stock from search
     const addStockFromSearch = (stock) => {
-        // Ensure .NS suffix for consistency with OrderForm
-        const symbolWithSuffix = stock.symbol.endsWith('.NS') ? stock.symbol : `${stock.symbol}.NS`;
-
-        if (!config.selectedStocks.includes(symbolWithSuffix)) {
+        if (!config.selectedStocks.includes(stock.symbol)) {
             setConfig(prev => ({
                 ...prev,
-                selectedStocks: [...prev.selectedStocks, symbolWithSuffix]
+                selectedStocks: [...prev.selectedStocks, stock.symbol]
             }));
         }
         setSearchQuery('');
         setSearchResults([]);
     };
 
-    const addStockFromAI = (stock) => {
-        // Ensure .NS suffix for consistency with OrderForm
-        const symbolWithSuffix = stock.symbol.endsWith('.NS') ? stock.symbol : `${stock.symbol}.NS`;
+    // Generate stock suggestions based on budget with live prices
+    const generateStockSuggestions = async () => {
+        setIsGenerating(true);
 
-        if (!config.selectedStocks.includes(symbolWithSuffix)) {
+        const budget = Number(config.totalBudget) || 100000;
+        const perTrade = config.perTradeType === 'fixed'
+            ? Number(config.perTradeAmount) || budget
+            : (budget * Number(config.perTradePercent || 100)) / 100;
+
+        try {
+            // Import MarketDataService
+            const MarketDataService = (await import('../../services/marketDataService')).default;
+
+            // Fetch live prices for all stocks
+            const stocksWithLivePrices = await Promise.all(
+                allStocksPool.map(async (stock) => {
+                    try {
+                        const quote = await MarketDataService.getQuote(stock.symbol);
+                        return {
+                            ...stock,
+                            price: quote?.price || stock.price,
+                            change: quote?.changePercent || stock.change
+                        };
+                    } catch (error) {
+                        console.log(`Using cached price for ${stock.symbol}`);
+                        return stock;
+                    }
+                })
+            );
+
+            // Filter: affordable, not selected, not declined
+            let available = stocksWithLivePrices.filter(s =>
+                s.price <= perTrade &&
+                !config.selectedStocks.includes(s.symbol) &&
+                !declinedStocks.includes(s.symbol)
+            );
+
+            available.sort((a, b) => b.aiScore - a.aiScore);
+            setStockPool(available);
+            setSuggestedStocks(available.slice(0, 5));
+        } catch (error) {
+            console.error('Error fetching live prices:', error);
+            // Fallback to cached prices
+            let available = allStocksPool.filter(s =>
+                s.price <= perTrade &&
+                !config.selectedStocks.includes(s.symbol) &&
+                !declinedStocks.includes(s.symbol)
+            );
+            available.sort((a, b) => b.aiScore - a.aiScore);
+            setStockPool(available);
+            setSuggestedStocks(available.slice(0, 5));
+        }
+
+        setIsGenerating(false);
+    };
+
+    const approveStock = (stock) => {
+        if (!config.selectedStocks.includes(stock.symbol)) {
             setConfig(prev => ({
                 ...prev,
-                selectedStocks: [...prev.selectedStocks, symbolWithSuffix]
+                selectedStocks: [...prev.selectedStocks, stock.symbol]
             }));
+        }
+
+        // Remove from suggested list
+        const remaining = suggestedStocks.filter(s => s.symbol !== stock.symbol);
+
+        // Get next stock from pool
+        const nextStock = stockPool.find(s =>
+            !remaining.some(r => r.symbol === s.symbol) &&
+            !config.selectedStocks.includes(s.symbol) &&
+            !declinedStocks.includes(s.symbol) &&
+            s.symbol !== stock.symbol
+        );
+
+        if (nextStock) {
+            setSuggestedStocks([...remaining, nextStock]);
+        } else {
+            setSuggestedStocks(remaining);
         }
     };
 
-    const removeStock = (stock) => {
-        setConfig(prev => ({
-            ...prev,
-            selectedStocks: prev.selectedStocks.filter(s => s !== stock)
-        }));
+    const declineStock = (stock) => {
+        // Add to declined list
+        setDeclinedStocks(prev => [...prev, stock.symbol]);
+
+        // Remove from current suggestions
+        const remaining = suggestedStocks.filter(s => s.symbol !== stock.symbol);
+
+        // Find next available stock from pool
+        const nextStock = stockPool.find(s =>
+            !remaining.some(r => r.symbol === s.symbol) &&
+            !config.selectedStocks.includes(s.symbol) &&
+            !declinedStocks.includes(s.symbol) &&
+            s.symbol !== stock.symbol
+        );
+
+        // Add new stock to the end
+        if (nextStock) {
+            setSuggestedStocks([...remaining, nextStock]);
+        } else {
+            setSuggestedStocks(remaining);
+        }
     };
 
     const updateConfig = (key, value) => {
         setConfig(prev => ({ ...prev, [key]: value }));
     };
 
-    const toggleArrayItem = (key, item) => {
-        setConfig(prev => ({
-            ...prev,
-            [key]: prev[key].includes(item)
-                ? prev[key].filter(i => i !== item)
-                : [...prev[key], item]
-        }));
+    const canProceed = () => {
+        if (currentStep === 1) return config.strategy;
+        if (currentStep === 2) return config.totalBudget > 0;
+        if (currentStep === 3) return config.stopLoss && config.takeProfit;
+        if (currentStep === 4) return config.selectedStocks.length > 0;
+        return true;
     };
 
-    // Load AI suggestions when modal opens
     useEffect(() => {
-        if (show && config.useAISuggestions && aiSuggestions.length === 0) {
-            generateAISuggestions();
+        if (currentStep === 4 && suggestedStocks.length === 0) {
+            generateStockSuggestions();
         }
-    }, [show, config.useAISuggestions]);
+    }, [currentStep]);
 
-    // Reload suggestions when filters change
+    // Reset state when modal closes
     useEffect(() => {
-        if (show && config.useAISuggestions && aiSuggestions.length > 0) {
-            generateAISuggestions();
+        if (!show) {
+            setApprovedStocks([]);
+            setDeclinedStocks([]);
+            setStockQuantities({});
+            setSuggestedStocks([]);
+            setSearchQuery('');
+            setSearchResults([]);
+            setCurrentStep(1);
         }
-    }, [config.priceMin, config.priceMax, config.marketTrend, show]);
+    }, [show]);
 
-    // Early return AFTER all hooks
+    // Remove stock from approved list
+    const removeStock = (symbol) => {
+        setConfig(prev => ({
+            ...prev,
+            selectedStocks: prev.selectedStocks.filter(s => s !== symbol),
+            stockQuantities: {
+                ...prev.stockQuantities,
+                [symbol]: undefined
+            }
+        }));
+        setApprovedStocks(prev => prev.filter(s => s !== symbol));
+    };
+
     if (!show) return null;
 
+    const steps = [
+        { num: 1, title: 'Strategy', icon: '🎯' },
+        { num: 2, title: 'Budget', icon: '💰' },
+        { num: 3, title: 'Safety', icon: '🛡️' },
+        { num: 4, title: 'Stocks', icon: '📊' },
+    ];
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl border border-purple-500/30 shadow-2xl shadow-purple-900/50 max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl border border-purple-500/20 shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-hidden flex flex-col">
 
                 {/* Header */}
-                <div className="bg-gradient-to-r from-purple-900/95 to-indigo-900/95 backdrop-blur-sm p-4 sm:p-6 border-b border-purple-500/30">
+                <div className="relative bg-gradient-to-r from-purple-600/10 via-indigo-600/10 to-purple-600/10 p-6 border-b border-purple-500/20">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-purple-600/20 rounded-lg">
-                                <span className="text-2xl">⚡</span>
-                            </div>
-                            <div>
-                                <h2 className="text-xl sm:text-2xl font-bold text-white">AI Trading Setup</h2>
-                                <p className="text-xs sm:text-sm text-purple-200">Configure your automated trading strategy</p>
-                            </div>
+                        <div>
+                            <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
+                                AI Trading Setup
+                            </h2>
+                            <p className="text-sm text-slate-400 mt-1">Configure your automated trading in 4 simple steps</p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            className="p-2 hover:bg-white/5 rounded-xl transition-all group"
                         >
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-6 h-6 text-slate-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
+
+                    {/* Progress Steps */}
+                    <div className="flex items-center justify-between mt-8 gap-2">
+                        {steps.map((step, idx) => (
+                            <React.Fragment key={step.num}>
+                                <div className="flex flex-col items-center flex-1">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold transition-all duration-300 ${currentStep === step.num
+                                        ? 'bg-gradient-to-br from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/50 scale-110'
+                                        : currentStep > step.num
+                                            ? 'bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30'
+                                            : 'bg-slate-800 text-slate-500 border border-slate-700'
+                                        }`}>
+                                        {currentStep > step.num ? '✓' : step.icon}
+                                    </div>
+                                    <div className={`text-xs mt-2 font-medium transition-colors ${currentStep === step.num ? 'text-purple-400' : currentStep > step.num ? 'text-green-400' : 'text-slate-500'
+                                        }`}>
+                                        {step.title}
+                                    </div>
+                                </div>
+                                {idx < steps.length - 1 && (
+                                    <div className={`h-1 flex-1 rounded-full transition-all duration-300 ${currentStep > step.num ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-slate-800'
+                                        }`} />
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Content - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-8">
 
-                    {/* Stock Selection Section */}
-                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <span>📊</span> Stock Selection
-                            </h3>
-                            <button
-                                onClick={() => setShowFilters(!showFilters)}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-purple-200 text-sm transition-colors"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                                </svg>
-                                Filters
-                            </button>
-                        </div>
-
-                        {/* Search Bar */}
-                        <div className="mb-4 relative">
-                            <label className="block text-sm text-slate-300 mb-2">Search Stocks</label>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => handleSearch(e.target.value)}
-                                    placeholder="Search by symbol or company name..."
-                                    className="w-full px-4 py-2.5 pl-10 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 text-sm focus:border-purple-500 focus:outline-none"
-                                />
-                                <svg className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                    {/* Step 1: Trading Strategy */}
+                    {currentStep === 1 && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="text-center mb-8">
+                                <h3 className="text-2xl font-bold text-white mb-2">Choose Your Trading Style</h3>
+                                <p className="text-slate-400">How long do you want to hold stocks?</p>
                             </div>
 
-                            {/* Search Results Dropdown */}
-                            {searchResults.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                                    {searchResults.map(stock => (
-                                        <button
-                                            key={stock.symbol}
-                                            onClick={() => addStockFromSearch(stock)}
-                                            className="w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <div className="text-white font-medium">{stock.symbol}</div>
-                                                    <div className="text-xs text-slate-400">{stock.name}</div>
-                                                </div>
-                                                <span className="text-xs text-purple-400">{stock.exchange}</span>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Selected Stocks */}
-                        {config.selectedStocks.length > 0 && (
-                            <div className="mb-4">
-                                <label className="block text-sm text-slate-300 mb-2">Selected Stocks ({config.selectedStocks.length})</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {config.selectedStocks.map(stock => (
-                                        <span key={stock} className="px-3 py-1.5 bg-purple-600/20 border border-purple-500/30 rounded-full text-purple-200 text-sm flex items-center gap-2">
-                                            {stock}
-                                            <button onClick={() => removeStock(stock)} className="hover:text-white text-lg leading-none">×</button>
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* AI Suggestions Toggle */}
-                        <label className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg cursor-pointer mb-4">
-                            <span className="text-sm text-slate-200">Use AI Auto-Suggestions</span>
-                            <input
-                                type="checkbox"
-                                checked={config.useAISuggestions}
-                                onChange={(e) => {
-                                    updateConfig('useAISuggestions', e.target.checked);
-                                    if (e.target.checked) generateAISuggestions();
-                                }}
-                                className="w-5 h-5 rounded bg-slate-600 border-slate-500"
-                            />
-                        </label>
-
-                        {/* AI Suggested Stocks */}
-                        {config.useAISuggestions && (
-                            <div>
-                                <div className="flex items-center justify-between mb-3">
-                                    <label className="block text-sm text-slate-300">AI Recommended Stocks</label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {[
+                                    { value: 'intraday', label: 'Day Trading', desc: 'Buy and sell same day', time: 'Few hours', icon: '⚡', color: 'from-yellow-500 to-orange-500' },
+                                    { value: 'swing', label: 'Swing Trading', desc: 'Hold for few days', time: '2-5 days', icon: '📈', color: 'from-blue-500 to-cyan-500' },
+                                    { value: 'longterm', label: 'Long Term', desc: 'Hold for weeks/months', time: 'Weeks+', icon: '🎯', color: 'from-purple-500 to-pink-500' }
+                                ].map(strategy => (
                                     <button
-                                        onClick={generateAISuggestions}
-                                        disabled={isGenerating}
-                                        className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                                        key={strategy.value}
+                                        onClick={() => updateConfig('strategy', strategy.value)}
+                                        className={`group relative p-8 rounded-2xl border-2 transition-all duration-300 ${config.strategy === strategy.value
+                                            ? 'bg-gradient-to-br from-purple-600/20 to-indigo-600/20 border-purple-500 shadow-xl shadow-purple-500/20 scale-105'
+                                            : 'bg-slate-800/30 border-slate-700 hover:border-slate-600 hover:bg-slate-800/50'
+                                            }`}
                                     >
-                                        <svg className={`w-3 h-3 ${isGenerating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
-                                        Refresh
+                                        <div className="text-5xl mb-4">{strategy.icon}</div>
+                                        <div className="text-xl font-bold text-white mb-2">{strategy.label}</div>
+                                        <div className="text-sm text-slate-400 mb-3">{strategy.desc}</div>
+                                        <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r ${strategy.color} text-white`}>
+                                            ⏱️ {strategy.time}
+                                        </div>
                                     </button>
-                                </div>
-
-                                {isGenerating ? (
-                                    <div className="flex items-center justify-center py-8">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-                                        <span className="ml-3 text-slate-400">Analyzing market data...</span>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
-                                        {aiSuggestions.map(stock => (
-                                            <div
-                                                key={stock.symbol}
-                                                className="p-4 bg-slate-700/30 border border-slate-600 rounded-lg hover:border-purple-500/50 transition-all"
-                                            >
-                                                <div className="flex items-start justify-between mb-2">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <h4 className="text-white font-semibold">{stock.symbol}</h4>
-                                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${stock.aiScore >= 85 ? 'bg-emerald-600/20 text-emerald-300' :
-                                                                stock.aiScore >= 75 ? 'bg-blue-600/20 text-blue-300' :
-                                                                    'bg-yellow-600/20 text-yellow-300'
-                                                                }`}>
-                                                                AI Score: {stock.aiScore}
-                                                            </span>
-                                                        </div>
-                                                        <p className="text-xs text-slate-400 mb-2">{stock.name}</p>
-
-                                                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                                            <div>
-                                                                <span className="text-slate-400">Price: </span>
-                                                                <span className="text-white font-medium">₹{stock.price.toFixed(2)}</span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-slate-400">Change: </span>
-                                                                <span className={stock.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                                                    {stock.change >= 0 ? '+' : ''}{stock.change}%
-                                                                </span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-slate-400">Volume: </span>
-                                                                <span className="text-white">{stock.volume}</span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-slate-400">P/E: </span>
-                                                                <span className="text-white">{stock.pe}</span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-slate-400">Sector: </span>
-                                                                <span className="text-purple-300">{stock.sector}</span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-slate-400">Recommendation: </span>
-                                                                <span className={`font-medium ${stock.recommendation === 'Strong Buy' ? 'text-emerald-400' :
-                                                                    stock.recommendation === 'Buy' ? 'text-blue-400' :
-                                                                        'text-yellow-400'
-                                                                    }`}>{stock.recommendation}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <button
-                                                        onClick={() => addStockFromAI(stock)}
-                                                        disabled={config.selectedStocks.includes(stock.symbol)}
-                                                        className={`ml-3 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${config.selectedStocks.includes(stock.symbol)
-                                                            ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
-                                                            : 'bg-purple-600 hover:bg-purple-700 text-white'
-                                                            }`}
-                                                    >
-                                                        {config.selectedStocks.includes(stock.symbol) ? 'Added' : 'Add'}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Filters Panel - Collapsible */}
-                    {showFilters && (
-                        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700 animate-fadeIn">
-                            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                                <span>🔍</span> Advanced Filters
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                                {/* Segment */}
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Segment</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {['NSE', 'BSE', 'F&O', 'Equity'].map(seg => (
-                                            <button
-                                                key={seg}
-                                                onClick={() => toggleArrayItem('segment', seg)}
-                                                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${config.segment.includes(seg)
-                                                    ? 'bg-purple-600 text-white'
-                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                                                    }`}
-                                            >
-                                                {seg}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Price Range */}
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Price Range (₹)</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="number"
-                                            value={config.priceMin}
-                                            onChange={(e) => updateConfig('priceMin', e.target.value)}
-                                            placeholder="Min"
-                                            className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
-                                        />
-                                        <input
-                                            type="number"
-                                            value={config.priceMax}
-                                            onChange={(e) => updateConfig('priceMax', e.target.value)}
-                                            placeholder="Max"
-                                            className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Volume Filter */}
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Volume</label>
-                                    <select
-                                        value={config.volumeFilter}
-                                        onChange={(e) => updateConfig('volumeFilter', e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
-                                    >
-                                        <option value="any">Any</option>
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                    </select>
-                                </div>
-
-                                {/* Volatility */}
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Volatility</label>
-                                    <select
-                                        value={config.volatilityFilter}
-                                        onChange={(e) => updateConfig('volatilityFilter', e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
-                                    >
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                    </select>
-                                </div>
-
-                                {/* Market Trend */}
-                                <div className="sm:col-span-2">
-                                    <label className="block text-sm text-slate-300 mb-2">Market Trend</label>
-                                    <div className="flex gap-2">
-                                        {['Bullish', 'Bearish', 'Neutral', 'Any'].map(trend => (
-                                            <button
-                                                key={trend}
-                                                onClick={() => updateConfig('marketTrend', trend.toLowerCase())}
-                                                className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${config.marketTrend === trend.toLowerCase()
-                                                    ? 'bg-purple-600 text-white'
-                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                                                    }`}
-                                            >
-                                                {trend}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         </div>
                     )}
 
-                    {/* Strategy Selection */}
-                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span>🎯</span> Trading Strategy
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            {[
-                                { value: 'intraday', label: 'Intraday', desc: 'Same day' },
-                                { value: 'swing', label: 'Swing', desc: '~3 days' },
-                                { value: 'longterm', label: 'Long-term', desc: 'Weeks+' }
-                            ].map(strategy => (
-                                <button
-                                    key={strategy.value}
-                                    onClick={() => updateConfig('strategy', strategy.value)}
-                                    className={`p-3 rounded-lg border-2 transition-all ${config.strategy === strategy.value
-                                        ? 'bg-purple-600/20 border-purple-500 text-white'
-                                        : 'bg-slate-700/30 border-slate-600 text-slate-300 hover:border-slate-500'
-                                        }`}
-                                >
-                                    <div className="font-semibold text-sm">{strategy.label}</div>
-                                    <div className="text-xs opacity-70">{strategy.desc}</div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Order Execution Rules */}
-                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span>⚙️</span> Execution Rules
-                        </h3>
-                        <div className="space-y-4">
-
-                            {/* Execution Mode */}
-                            <div>
-                                <label className="block text-sm text-slate-300 mb-2">Mode</label>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => updateConfig('executionMode', 'paper')}
-                                        className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${config.executionMode === 'paper'
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                                            }`}
-                                    >
-                                        📝 Paper Trade
-                                    </button>
-                                    <button
-                                        onClick={() => updateConfig('executionMode', 'live')}
-                                        className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${config.executionMode === 'live'
-                                            ? 'bg-emerald-600 text-white'
-                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                                            }`}
-                                    >
-                                        🔴 Live Trade
-                                    </button>
-                                </div>
+                    {/* Step 2: Budget & Execution */}
+                    {currentStep === 2 && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="text-center mb-8">
+                                <h3 className="text-2xl font-bold text-white mb-2">Set Your Budget & Rules</h3>
+                                <p className="text-slate-400">How much money do you want to invest?</p>
                             </div>
 
-                            {/* Capital Allocation */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Total Budget (₹)</label>
+                            <div className="space-y-6">
+                                {/* Trading Mode Selection */}
+                                <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700">
+                                    <label className="block text-sm font-semibold text-slate-300 mb-4">📝 Trading Mode</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <button
+                                            onClick={() => updateConfig('executionMode', 'paper')}
+                                            className={`p-6 rounded-xl font-semibold transition-all duration-300 ${config.executionMode === 'paper'
+                                                ? 'bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/30'
+                                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                                                }`}
+                                        >
+                                            <div className="text-3xl mb-2">📝</div>
+                                            <div className="text-lg">Paper Trading</div>
+                                            <div className="text-xs opacity-70 mt-1">Practice with virtual money</div>
+                                        </button>
+                                        <button
+                                            onClick={() => updateConfig('executionMode', 'live')}
+                                            className={`p-6 rounded-xl font-semibold transition-all duration-300 ${config.executionMode === 'live'
+                                                ? 'bg-gradient-to-br from-emerald-600 to-green-600 text-white shadow-lg shadow-green-500/30'
+                                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                                                }`}
+                                        >
+                                            <div className="text-3xl mb-2">🔴</div>
+                                            <div className="text-lg">Live Trading</div>
+                                            <div className="text-xs opacity-70 mt-1">Trade with real money</div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700">
+                                    <label className="block text-sm font-semibold text-slate-300 mb-4">💰 Total Budget</label>
                                     <input
                                         type="number"
                                         value={config.totalBudget}
                                         onChange={(e) => updateConfig('totalBudget', e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                                        placeholder="Enter amount in ₹"
+                                        className="w-full px-6 py-4 bg-slate-900/50 border border-slate-600 rounded-xl text-white text-xl font-semibold focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition-all"
                                     />
+                                    <p className="text-xs text-slate-500 mt-3">💡 Example: ₹100000 (1 Lakh)</p>
                                 </div>
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Per Trade</label>
-                                    <div className="flex gap-2">
+
+                                <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700">
+                                    <label className="block text-sm font-semibold text-slate-300 mb-4">📊 Money Per Stock</label>
+                                    <div className="flex gap-4">
                                         <select
                                             value={config.perTradeType}
                                             onChange={(e) => updateConfig('perTradeType', e.target.value)}
-                                            className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                                            className="px-4 py-4 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-medium focus:border-purple-500 focus:outline-none transition-all"
                                         >
-                                            <option value="fixed">₹</option>
-                                            <option value="percentage">%</option>
+                                            <option value="fixed">Fixed Amount (₹)</option>
+                                            <option value="percentage">Percentage (%)</option>
                                         </select>
                                         <input
                                             type="number"
@@ -549,54 +440,85 @@ export default function AITradingModal({
                                                 config.perTradeType === 'fixed' ? 'perTradeAmount' : 'perTradePercent',
                                                 e.target.value
                                             )}
-                                            className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                                            placeholder={config.perTradeType === 'fixed' ? 'Amount' : 'Percentage'}
+                                            className="flex-1 px-6 py-4 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-semibold focus:border-purple-500 focus:outline-none transition-all"
                                         />
                                     </div>
+                                    <p className="text-xs text-slate-500 mt-3">
+                                        💡 {config.perTradeType === 'fixed'
+                                            ? 'How much to invest in each stock'
+                                            : 'What % of total budget per stock'}
+                                    </p>
                                 </div>
-                            </div>
 
-                            {/* Order Type & Max Trades */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Order Type</label>
-                                    <select
-                                        value={config.orderType}
-                                        onChange={(e) => updateConfig('orderType', e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
-                                    >
-                                        <option value="market">Market</option>
-                                        <option value="limit">Limit</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Max Trades/Day</label>
+                                <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700">
+                                    <label className="block text-sm font-semibold text-slate-300 mb-4">🔢 Max Trades Per Day</label>
                                     <input
                                         type="number"
                                         value={config.maxTradesPerDay}
                                         onChange={(e) => updateConfig('maxTradesPerDay', e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                                        className="w-full px-6 py-4 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-semibold focus:border-purple-500 focus:outline-none transition-all"
                                     />
+                                    <p className="text-xs text-slate-500 mt-3">💡 Limit number of trades per day</p>
+                                </div>
+
+                                {/* Extra Budget Features */}
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700">
+                                        <label className="block text-sm font-semibold text-slate-300 mb-4">📦 Order Type</label>
+                                        <select
+                                            value={config.orderType || 'market'}
+                                            onChange={(e) => updateConfig('orderType', e.target.value)}
+                                            className="w-full px-4 py-4 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-medium focus:border-purple-500 focus:outline-none"
+                                        >
+                                            <option value="market">Market Order</option>
+                                            <option value="limit">Limit Order</option>
+                                        </select>
+                                        <p className="text-xs text-slate-500 mt-3">💡 Market = Instant, Limit = At specific price</p>
+                                    </div>
+
+                                    <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700">
+                                        <label className="block text-sm font-semibold text-slate-300 mb-4">⚖️ Position Sizing</label>
+                                        <select
+                                            value={config.positionSizing || 'equal'}
+                                            onChange={(e) => updateConfig('positionSizing', e.target.value)}
+                                            className="w-full px-4 py-4 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-medium focus:border-purple-500 focus:outline-none"
+                                        >
+                                            <option value="equal">Equal Weight</option>
+                                            <option value="aiScore">AI Score Based</option>
+                                            <option value="volatility">Volatility Based</option>
+                                        </select>
+                                        <p className="text-xs text-slate-500 mt-3">💡 How to distribute money across stocks</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
-                    {/* Risk & Profit System */}
-                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span>🛡️</span> Risk & Profit Management
-                        </h3>
-                        <div className="space-y-4">
+                    {/* Step 3: Risk & Profit */}
+                    {currentStep === 3 && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="text-center mb-8">
+                                <h3 className="text-2xl font-bold text-white mb-2">Protect Your Money</h3>
+                                <p className="text-slate-400">Set limits to control losses and lock profits</p>
+                            </div>
 
-                            {/* Stop Loss & Take Profit */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Stop Loss</label>
-                                    <div className="flex gap-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-gradient-to-br from-red-900/20 to-red-800/10 rounded-2xl p-6 border border-red-700/30">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="w-12 h-12 rounded-xl bg-red-600/20 flex items-center justify-center text-2xl">
+                                            🛑
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-white text-lg">Stop Loss</h4>
+                                            <p className="text-xs text-red-300">Auto-sell if losing money</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-3">
                                         <select
                                             value={config.stopLossType}
                                             onChange={(e) => updateConfig('stopLossType', e.target.value)}
-                                            className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                                            className="px-4 py-3 bg-slate-900/50 border border-red-600/30 rounded-xl text-white text-sm focus:border-red-500 focus:outline-none"
                                         >
                                             <option value="percentage">%</option>
                                             <option value="fixed">₹</option>
@@ -605,17 +527,30 @@ export default function AITradingModal({
                                             type="number"
                                             value={config.stopLoss}
                                             onChange={(e) => updateConfig('stopLoss', e.target.value)}
-                                            className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                                            placeholder="e.g., 2"
+                                            className="flex-1 px-4 py-3 bg-slate-900/50 border border-red-600/30 rounded-xl text-white font-semibold focus:border-red-500 focus:outline-none"
                                         />
                                     </div>
+                                    <p className="text-xs text-red-400 mt-4 bg-red-900/20 p-3 rounded-lg">
+                                        💡 Example: 2% means sell if stock falls 2%
+                                    </p>
                                 </div>
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Take Profit</label>
-                                    <div className="flex gap-2">
+
+                                <div className="bg-gradient-to-br from-green-900/20 to-green-800/10 rounded-2xl p-6 border border-green-700/30">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="w-12 h-12 rounded-xl bg-green-600/20 flex items-center justify-center text-2xl">
+                                            🎯
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-white text-lg">Take Profit</h4>
+                                            <p className="text-xs text-green-300">Auto-sell when target reached</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-3">
                                         <select
                                             value={config.takeProfitType}
                                             onChange={(e) => updateConfig('takeProfitType', e.target.value)}
-                                            className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                                            className="px-4 py-3 bg-slate-900/50 border border-green-600/30 rounded-xl text-white text-sm focus:border-green-500 focus:outline-none"
                                         >
                                             <option value="percentage">%</option>
                                             <option value="fixed">₹</option>
@@ -624,156 +559,405 @@ export default function AITradingModal({
                                             type="number"
                                             value={config.takeProfit}
                                             onChange={(e) => updateConfig('takeProfit', e.target.value)}
-                                            className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                                            placeholder="e.g., 5"
+                                            className="flex-1 px-4 py-3 bg-slate-900/50 border border-green-600/30 rounded-xl text-white font-semibold focus:border-green-500 focus:outline-none"
                                         />
+                                    </div>
+                                    <p className="text-xs text-green-400 mt-4 bg-green-900/20 p-3 rounded-lg">
+                                        💡 Example: 5% means sell if stock rises 5%
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700">
+                                <h4 className="font-bold text-white mb-6 flex items-center gap-2">
+                                    <span className="text-2xl">🚨</span>
+                                    Daily Safety Limits
+                                </h4>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm text-slate-300 mb-3 font-medium">Max Daily Loss (%)</label>
+                                        <input
+                                            type="number"
+                                            value={config.maxDailyLoss}
+                                            onChange={(e) => updateConfig('maxDailyLoss', e.target.value)}
+                                            placeholder="e.g., 5"
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-semibold focus:border-purple-500 focus:outline-none"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-2">Stop if you lose this much</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-slate-300 mb-3 font-medium">Max Daily Profit (%)</label>
+                                        <input
+                                            type="number"
+                                            value={config.maxDailyProfit}
+                                            onChange={(e) => updateConfig('maxDailyProfit', e.target.value)}
+                                            placeholder="e.g., 10"
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-semibold focus:border-purple-500 focus:outline-none"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-2">Stop after reaching profit</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Time Controls */}
+                            <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700">
+                                <h4 className="font-bold text-white mb-6 flex items-center gap-2">
+                                    <span className="text-2xl">⏰</span>
+                                    Trading Time Controls
+                                </h4>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm text-slate-300 mb-3 font-medium">Entry Time (Start)</label>
+                                            <input
+                                                type="time"
+                                                value={config.entryTimeFrom || '09:15'}
+                                                onChange={(e) => updateConfig('entryTimeFrom', e.target.value)}
+                                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-semibold focus:border-purple-500 focus:outline-none"
+                                            />
+                                            <p className="text-xs text-slate-500 mt-2">When to start trading</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm text-slate-300 mb-3 font-medium">Entry Time (End)</label>
+                                            <input
+                                                type="time"
+                                                value={config.entryTimeTo || '15:00'}
+                                                onChange={(e) => updateConfig('entryTimeTo', e.target.value)}
+                                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-semibold focus:border-purple-500 focus:outline-none"
+                                            />
+                                            <p className="text-xs text-slate-500 mt-2">Last time to enter trades</p>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-slate-300 mb-3 font-medium">Exit Time (Close All Positions)</label>
+                                        <input
+                                            type="time"
+                                            value={config.exitTime || '15:20'}
+                                            onChange={(e) => updateConfig('exitTime', e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-semibold focus:border-purple-500 focus:outline-none"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-2">Auto-exit all positions at this time</p>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Trailing Stop Loss */}
-                            <label className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg cursor-pointer">
-                                <div>
-                                    <span className="text-sm text-slate-200">Trailing Stop Loss</span>
-                                    {config.useTrailingStop && (
-                                        <input
-                                            type="number"
-                                            value={config.trailingStopPercent}
-                                            onChange={(e) => updateConfig('trailingStopPercent', e.target.value)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            placeholder="%"
-                                            className="ml-2 w-16 px-2 py-1 bg-slate-600 border border-slate-500 rounded text-white text-xs focus:border-purple-500 focus:outline-none"
-                                        />
-                                    )}
-                                </div>
-                                <input
-                                    type="checkbox"
-                                    checked={config.useTrailingStop}
-                                    onChange={(e) => updateConfig('useTrailingStop', e.target.checked)}
-                                    className="w-5 h-5 rounded bg-slate-600 border-slate-500"
-                                />
-                            </label>
-
-                            {/* Global Safety Limits */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Max Daily Loss (%)</label>
+                            <div className="bg-gradient-to-br from-blue-900/20 to-indigo-900/20 rounded-2xl p-6 border border-blue-700/30">
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <div>
+                                        <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                                            <span className="text-2xl">📈</span>
+                                            Trailing Stop Loss
+                                        </h4>
+                                        <p className="text-sm text-slate-400">Lock profits as stock price rises</p>
+                                        {config.useTrailingStop && (
+                                            <input
+                                                type="number"
+                                                value={config.trailingStopPercent || 1}
+                                                onChange={(e) => updateConfig('trailingStopPercent', e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                placeholder="%"
+                                                className="mt-3 w-32 px-4 py-2 bg-slate-900/50 border border-blue-600/30 rounded-lg text-white font-semibold focus:border-blue-500 focus:outline-none"
+                                            />
+                                        )}
+                                    </div>
                                     <input
-                                        type="number"
-                                        value={config.maxDailyLoss}
-                                        onChange={(e) => updateConfig('maxDailyLoss', e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                                        type="checkbox"
+                                        checked={config.useTrailingStop || false}
+                                        onChange={(e) => updateConfig('useTrailingStop', e.target.checked)}
+                                        className="w-6 h-6 rounded bg-slate-600 border-slate-500"
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-slate-300 mb-2">Max Daily Profit (%)</label>
-                                    <input
-                                        type="number"
-                                        value={config.maxDailyProfit}
-                                        onChange={(e) => updateConfig('maxDailyProfit', e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
-                                    />
-                                </div>
+                                </label>
                             </div>
                         </div>
-                    </div>
+                    )}
 
-                    {/* Time Controls */}
-                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span>⏰</span> Time Controls
-                        </h3>
-                        <div className="space-y-4">
-
-                            {/* Entry Time Window */}
-                            <div>
-                                <label className="block text-sm text-slate-300 mb-2">Entry Time Window</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <input
-                                        type="time"
-                                        value={config.entryTimeFrom}
-                                        onChange={(e) => updateConfig('entryTimeFrom', e.target.value)}
-                                        className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
-                                    />
-                                    <input
-                                        type="time"
-                                        value={config.entryTimeTo}
-                                        onChange={(e) => updateConfig('entryTimeTo', e.target.value)}
-                                        className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
-                                    />
-                                </div>
+                    {/* Step 4: Stock Selection */}
+                    {currentStep === 4 && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="text-center mb-8">
+                                <h3 className="text-2xl font-bold text-white mb-2">AI Recommended Stocks</h3>
+                                <p className="text-slate-400">Based on your budget of ₹{config.totalBudget?.toLocaleString()}</p>
                             </div>
 
-                            {/* Exit Method */}
-                            <div>
-                                <label className="block text-sm text-slate-300 mb-2">Exit Method</label>
-                                <div className="space-y-2">
-                                    <div className="flex gap-2">
-                                        {[
-                                            { value: 'time', label: 'Exit at Time' },
-                                            { value: 'sltp', label: 'SL/TP Only' },
-                                            { value: 'either', label: 'Whichever First' }
-                                        ].map(method => (
+                            {/* Search Bar */}
+                            <div className="relative">
+                                <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-4 border border-slate-700">
+                                    <label className="block text-sm font-semibold text-slate-300 mb-3">
+                                        🔍 Search & Add Stock Manually
+                                        {searchQuery && (
+                                            <span className="ml-2 text-xs text-purple-400">
+                                                ({searchResults.length} results)
+                                            </span>
+                                        )}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => handleSearch(e.target.value)}
+                                        placeholder="Type stock name or symbol (e.g., RELIANCE, TCS)"
+                                        className="w-full px-6 py-4 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition-all"
+                                    />
+                                </div>
+
+                                {/* Search Results Dropdown */}
+                                {searchResults.length > 0 && (
+                                    <div className="absolute z-20 w-full mt-2 bg-slate-800 border border-purple-500/30 rounded-xl shadow-2xl max-h-80 overflow-y-auto">
+                                        {searchResults.map(stock => (
                                             <button
-                                                key={method.value}
-                                                onClick={() => updateConfig('exitMethod', method.value)}
-                                                className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${config.exitMethod === method.value
-                                                    ? 'bg-purple-600 text-white'
-                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                                                    }`}
+                                                key={stock.symbol}
+                                                onClick={() => addStockFromSearch(stock)}
+                                                className="w-full px-6 py-4 text-left hover:bg-purple-600/20 transition-all border-b border-slate-700 last:border-b-0 group"
                                             >
-                                                {method.label}
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1">
+                                                        <div className="text-white font-bold text-lg group-hover:text-purple-400 transition-colors">
+                                                            {stock.symbol.replace('.NS', '')}
+                                                        </div>
+                                                        <div className="text-sm text-slate-400">{stock.name}</div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-white font-semibold">₹{stock.price.toFixed(2)}</div>
+                                                        <div className={`text-sm ${stock.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                            {stock.change >= 0 ? '+' : ''}{stock.change}%
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </button>
                                         ))}
                                     </div>
-                                    {(config.exitMethod === 'time' || config.exitMethod === 'either') && (
-                                        <input
-                                            type="time"
-                                            value={config.exitTime}
-                                            onChange={(e) => updateConfig('exitTime', e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
-                                        />
-                                    )}
-                                </div>
+                                )}
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Status & Logs (when active) */}
-                    {isActive && logs.length > 0 && (
-                        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                                <span>📋</span> Trading Logs
-                            </h3>
-                            <div className="space-y-2 max-h-40 overflow-y-auto">
-                                {logs.map((log, idx) => (
-                                    <div key={idx} className="p-2 bg-slate-700/50 rounded text-xs text-slate-300">
-                                        <span className="text-slate-400">{log.time}</span> - {log.message}
-                                    </div>
-                                ))}
+                            <div className="border-t border-slate-700 pt-6">
+                                <h4 className="text-lg font-bold text-white mb-4">💡 AI Suggestions</h4>
                             </div>
+
+                            {suggestedStocks.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-16">
+                                    <div className="text-6xl mb-4">🎉</div>
+                                    <p className="text-xl text-white font-semibold mb-2">All stocks reviewed!</p>
+                                    <p className="text-slate-400">You've approved {config.selectedStocks.length} stocks</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {suggestedStocks.map((stock, idx) => (
+                                        <div
+                                            key={stock.symbol}
+                                            className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700 hover:border-purple-500/50 transition-all duration-300"
+                                        >
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-3 mb-3">
+                                                        <h4 className="text-2xl font-bold text-white">{stock.symbol.replace('.NS', '')}</h4>
+                                                        <span className="px-4 py-1.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-full text-sm font-bold shadow-lg shadow-green-500/20">
+                                                            AI Score: {stock.aiScore}/100
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-slate-400 mb-4">{stock.name}</p>
+
+                                                    <div className="grid grid-cols-3 gap-4 mb-4">
+                                                        <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-700">
+                                                            <div className="text-xs text-slate-400 mb-1">Price</div>
+                                                            <div className="text-xl font-bold text-white">₹{stock.price.toFixed(2)}</div>
+                                                        </div>
+                                                        <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-700">
+                                                            <div className="text-xs text-slate-400 mb-1">Change</div>
+                                                            <div className={`text-xl font-bold ${stock.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                {stock.change >= 0 ? '+' : ''}{stock.change}%
+                                                            </div>
+                                                        </div>
+                                                        <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-700">
+                                                            <div className="text-xs text-slate-400 mb-1">Action</div>
+                                                            <div className="text-xl font-bold text-purple-400">BUY</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="bg-gradient-to-r from-blue-900/30 to-indigo-900/30 border border-blue-700/30 rounded-xl p-4">
+                                                        <div className="text-xs text-blue-400 font-semibold mb-2 flex items-center gap-2">
+                                                            <span className="text-lg">💡</span>
+                                                            Why AI Recommends This:
+                                                        </div>
+                                                        <div className="text-sm text-slate-300">{stock.reason}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Quantity Input */}
+                                            <div className="mb-4">
+                                                <label className="block text-sm text-slate-300 mb-2 font-medium">
+                                                    📦 Quantity (How many shares?)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={stockQuantities[stock.symbol] || 1}
+                                                    onChange={(e) => {
+                                                        const qty = e.target.value === '' ? '' : Number(e.target.value);
+                                                        setStockQuantities(prev => ({
+                                                            ...prev,
+                                                            [stock.symbol]: qty
+                                                        }));
+                                                    }}
+                                                    onBlur={(e) => {
+                                                        const qty = Math.max(1, parseInt(e.target.value) || 1);
+                                                        setStockQuantities(prev => ({
+                                                            ...prev,
+                                                            [stock.symbol]: qty
+                                                        }));
+                                                    }}
+                                                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white font-semibold focus:border-purple-500 focus:outline-none"
+                                                />
+                                                <p className="text-xs text-slate-500 mt-2">
+                                                    💰 Total: ₹{(stock.price * (stockQuantities[stock.symbol] || 1)).toFixed(2)}
+                                                </p>
+                                            </div>
+
+                                            <div className="flex gap-4">
+                                                <button
+                                                    onClick={() => approveStock(stock)}
+                                                    disabled={approvedStocks.includes(stock.symbol)}
+                                                    className={`flex-1 py-4 font-bold rounded-xl transition-all shadow-lg ${approvedStocks.includes(stock.symbol)
+                                                        ? 'bg-green-800 text-white cursor-not-allowed opacity-75'
+                                                        : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-green-500/20 hover:shadow-green-500/40 hover:scale-105'
+                                                        }`}
+                                                >
+                                                    {approvedStocks.includes(stock.symbol) ? '✅ Approved' : '✅ Approve & Add'}
+                                                </button>
+                                                <button
+                                                    onClick={() => declineStock(stock)}
+                                                    disabled={declinedStocks.includes(stock.symbol)}
+                                                    className={`flex-1 py-4 font-bold rounded-xl transition-all shadow-lg ${declinedStocks.includes(stock.symbol)
+                                                        ? 'bg-red-800 text-white cursor-not-allowed opacity-75'
+                                                        : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-red-500/20 hover:shadow-red-500/40 hover:scale-105'
+                                                        }`}
+                                                >
+                                                    {declinedStocks.includes(stock.symbol) ? '❌ Declined' : '❌ Decline'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {config.selectedStocks.length > 0 && (
+                                <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/20 border border-green-700/30 rounded-2xl p-6">
+                                    <h4 className="font-bold text-white mb-4 flex items-center gap-2">
+                                        <span className="text-2xl">✅</span>
+                                        Approved Stocks ({config.selectedStocks.length})
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {config.selectedStocks.map(stock => (
+                                            <div
+                                                key={stock}
+                                                className="bg-gradient-to-r from-green-600/10 to-emerald-600/10 border border-green-500/30 rounded-xl p-4"
+                                            >
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div>
+                                                        <div className="text-lg font-bold text-green-300">
+                                                            {stock.replace('.NS', '')}
+                                                        </div>
+                                                        <div className="text-xs text-slate-400">Approved Stock</div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => removeStock(stock)}
+                                                        className="p-2 hover:bg-red-600/20 rounded-lg transition-all group"
+                                                        title="Remove stock"
+                                                    >
+                                                        <svg className="w-5 h-5 text-slate-400 group-hover:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs text-slate-400 mb-2">Quantity</label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={config.stockQuantities?.[stock] || stockQuantities[stock] || 1}
+                                                        onChange={(e) => {
+                                                            const qty = e.target.value === '' ? '' : Number(e.target.value);
+                                                            setStockQuantities(prev => ({
+                                                                ...prev,
+                                                                [stock]: qty
+                                                            }));
+                                                            setConfig(prev => ({
+                                                                ...prev,
+                                                                stockQuantities: {
+                                                                    ...prev.stockQuantities,
+                                                                    [stock]: qty
+                                                                }
+                                                            }));
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            // Ensure minimum value of 1 on blur
+                                                            const qty = Math.max(1, parseInt(e.target.value) || 1);
+                                                            setStockQuantities(prev => ({
+                                                                ...prev,
+                                                                [stock]: qty
+                                                            }));
+                                                            setConfig(prev => ({
+                                                                ...prev,
+                                                                stockQuantities: {
+                                                                    ...prev.stockQuantities,
+                                                                    [stock]: qty
+                                                                }
+                                                            }));
+                                                        }}
+                                                        className="w-full px-3 py-2 bg-slate-900/50 border border-green-600/30 rounded-lg text-white font-semibold focus:border-green-500 focus:outline-none"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
-                {/* Footer Actions */}
-                <div className="bg-slate-900/95 backdrop-blur-sm p-4 sm:p-6 border-t border-slate-700">
-                    <div className="flex gap-3">
+                {/* Footer */}
+                <div className="bg-slate-900/95 backdrop-blur-sm p-6 border-t border-slate-700">
+                    <div className="flex gap-4">
+                        {currentStep > 1 && (
+                            <button
+                                onClick={() => setCurrentStep(prev => prev - 1)}
+                                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-xl transition-all border border-slate-700"
+                            >
+                                ← Back
+                            </button>
+                        )}
                         <button
                             onClick={onClose}
-                            className="flex-1 py-3 bg-slate-700 text-white font-medium rounded-lg hover:bg-slate-600 transition-colors"
+                            className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-xl transition-all border border-slate-700"
                         >
                             Cancel
                         </button>
-                        <button
-                            onClick={onStart}
-                            disabled={isActive}
-                            className={`flex-1 py-3 font-bold rounded-lg transition-all shadow-lg ${isActive
-                                ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-purple-900/50'
-                                }`}
-                        >
-                            {isActive ? '⚡ AI Trading Active' : '🚀 Start AI Trading'}
-                        </button>
+                        <div className="flex-1"></div>
+                        {currentStep < 4 ? (
+                            <button
+                                onClick={() => setCurrentStep(prev => prev + 1)}
+                                disabled={!canProceed()}
+                                className={`px-10 py-3 font-bold rounded-xl transition-all duration-300 ${canProceed()
+                                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-105'
+                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                    }`}
+                            >
+                                Next Step →
+                            </button>
+                        ) : (
+                            <button
+                                onClick={onStart}
+                                disabled={!canProceed() || isActive}
+                                className={`px-10 py-3 font-bold rounded-xl transition-all duration-300 ${canProceed() && !isActive
+                                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-105'
+                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                    }`}
+                            >
+                                {isActive ? '⚡ AI Trading Active' : '🚀 Start AI Trading'}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

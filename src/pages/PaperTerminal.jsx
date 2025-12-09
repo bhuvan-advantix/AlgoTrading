@@ -50,7 +50,7 @@ export default function PaperTerminal() {
     const blob = new Blob([txt], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'advantix_paper_session.json'; a.click(); URL.revokeObjectURL(url);
+    a.href = url; a.download = 'pulse915_paper_session.json'; a.click(); URL.revokeObjectURL(url);
   }
 
   async function handleImport(file) {

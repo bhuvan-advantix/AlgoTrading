@@ -46,9 +46,18 @@ export default function PortfolioSummary() {
 
       const data = await res.json();
 
+      console.log('[PortfolioSummary] Received data:', data);
+
       const positionsValue = data.reduce((sum, p) => sum + (p.market_value || 0), 0);
       const totalDailyPnl = data.reduce((sum, p) => sum + (p.daily_pnl || 0), 0);
       const totalUnrealizedPnl = data.reduce((sum, p) => sum + (p.unrealized_pnl || 0), 0);
+
+      console.log('[PortfolioSummary] Calculated:', {
+        positionsValue,
+        totalDailyPnl,
+        totalUnrealizedPnl,
+        cash
+      });
 
       setSummaryData({
         totalValue: cash + positionsValue,
@@ -61,6 +70,8 @@ export default function PortfolioSummary() {
       console.error('Error fetching portfolio summary:', err);
       // Fallback: calculate what we can locally
       const positionsValue = localPositions.reduce((sum, p) => sum + (p.quantity * p.avgPrice), 0);
+
+      console.log('[PortfolioSummary] Using fallback data');
 
       setSummaryData({
         totalValue: cash + positionsValue,
@@ -95,14 +106,21 @@ export default function PortfolioSummary() {
 
   if (loading && !summaryData.totalValue) return <div className="text-slate-400">Loading...</div>;
 
-  const { totalValue, dailyPnl, cash, positions } = summaryData;
-  const dayGainPct = totalValue > 0 ? (dailyPnl / totalValue) * 100 : 0;
+  const { totalValue, dailyPnl, cash, positions, unrealizedPnl } = summaryData;
+
+  // Calculate total amount invested
+  const totalInvested = positions.reduce((sum, p) => sum + (p.quantity * p.avg_price), 0);
+  const positionsCurrentValue = positions.reduce((sum, p) => sum + (p.market_value || 0), 0);
+
+  const dayGainPct = positionsCurrentValue > 0 ? (dailyPnl / positionsCurrentValue) * 100 : 0;
+  const unrealizedPct = totalInvested > 0 ? (unrealizedPnl / totalInvested) * 100 : 0;
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-white">Portfolio Summary</h3>
 
       <div className="space-y-3">
+        {/* Cash Balance */}
         <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-700/25 rounded-lg p-3">
           <div className="flex justify-between items-center">
             <span className="text-slate-400 text-sm">Cash Balance</span>
@@ -112,28 +130,69 @@ export default function PortfolioSummary() {
           </div>
         </div>
 
+        {/* Amount Invested */}
         <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-700/25 rounded-lg p-3">
           <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-sm">Positions</span>
-            <span className="text-white font-semibold">{positions.length}</span>
+            <span className="text-slate-400 text-sm">Amount Invested</span>
+            <span className="text-cyan-400 font-semibold">
+              ₹{totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
         </div>
 
+        {/* Current Value */}
         <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-700/25 rounded-lg p-3">
           <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-sm">Total Portfolio Value</span>
+            <span className="text-slate-400 text-sm">Current Value</span>
             <span className="text-white font-semibold">
-              ₹{totalValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹{positionsCurrentValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>
 
-        <div className={`p-3 rounded-lg border ${dailyPnl >= 0 ? 'bg-emerald-600/15 border-emerald-600/30' : 'bg-rose-600/15 border-rose-600/30'}`}>
+        {/* Unrealized P&L (Overall) */}
+        <div className={`p-3 rounded-lg border-2 ${unrealizedPnl >= 0 ? 'bg-emerald-600/15 border-emerald-600/40' : 'bg-rose-600/15 border-rose-600/40'}`}>
           <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-sm">Day's P&L</span>
-            <span className={`font-semibold ${dailyPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {dailyPnl >= 0 ? '+' : ''}₹{dailyPnl.toFixed(2)} ({dayGainPct >= 0 ? '+' : ''}{dayGainPct.toFixed(2)}%)
-            </span>
+            <div>
+              <div className="text-slate-300 text-sm font-semibold">
+                {unrealizedPnl >= 0 ? '✅ Total Profit' : '❌ Total Loss'}
+              </div>
+              <div className="text-xs text-slate-400 mt-0.5">Since you bought</div>
+            </div>
+            <div className="text-right">
+              <div className={`font-bold text-lg ${unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {unrealizedPnl >= 0 ? '+' : ''}₹{unrealizedPnl.toFixed(2)}
+              </div>
+              <div className={`text-xs ${unrealizedPnl >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                {unrealizedPct >= 0 ? '+' : ''}{unrealizedPct.toFixed(2)}%
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Day's P&L (Today Only) */}
+        <div className={`p-3 rounded-lg border ${dailyPnl >= 0 ? 'bg-emerald-600/10 border-emerald-600/30' : 'bg-rose-600/10 border-rose-600/30'}`}>
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="text-slate-400 text-sm">Today's Change</div>
+              <div className="text-xs text-slate-500 mt-0.5">From yesterday's close</div>
+            </div>
+            <div className="text-right">
+              <div className={`font-semibold ${dailyPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {dailyPnl >= 0 ? '+' : ''}₹{dailyPnl.toFixed(2)}
+              </div>
+              <div className={`text-xs ${dailyPnl >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                {dayGainPct >= 0 ? '+' : ''}{dayGainPct.toFixed(2)}%
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Number of Positions */}
+        <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-700/25 rounded-lg p-3">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-sm">Open Positions</span>
+            <span className="text-white font-semibold">{positions.length}</span>
           </div>
         </div>
       </div>

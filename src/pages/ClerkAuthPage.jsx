@@ -25,7 +25,7 @@ export default function ClerkAuthPage() {
             <div className="p-2.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg shadow-lg shadow-cyan-500/25">
               <ZapIcon className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold tracking-tight text-white">Advantix AGI</span>
+            <span className="text-2xl font-bold tracking-tight text-white">Pulse915</span>
           </div>
 
           <motion.div
@@ -67,7 +67,7 @@ export default function ClerkAuthPage() {
         </div>
 
         <div className="relative z-10 text-xs text-slate-600 font-medium">
-          © 2025 Advantix AGI. All rights reserved.
+          © 2025 Pulse915. All rights reserved.
         </div>
       </div>
 
@@ -88,7 +88,7 @@ export default function ClerkAuthPage() {
               <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg shadow-lg shadow-cyan-500/20">
                 <ZapIcon className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold text-white">Advantix AGI</span>
+              <span className="text-xl font-bold text-white">Pulse915</span>
             </div>
           </div>
 

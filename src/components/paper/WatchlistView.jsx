@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { readState } from '../../utils/paperTradingStore';
+import MarketDataService from '../../services/marketDataService';
 
-const API_BASE = import.meta.env.VITE_MARKET_API_URL || "https://algotrading-1-v2p7.onrender.com/api";
+const STORAGE_KEY = 'adv_paper_v2';
 
 export default function WatchlistView() {
-  const [watchlist, setWatchlist] = useState(() => {
-    return JSON.parse(localStorage.getItem("watchlist") || "[]");
-  });
-
+  const [watchlist, setWatchlist] = useState([]);
   const [quotes, setQuotes] = useState({});
   const [newSymbol, setNewSymbol] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Load watchlist from paper trading store
+  useEffect(() => {
+    const state = readState();
+    setWatchlist(state.watchlist || []);
+  }, []);
 
   // 🔄 Fetch live quotes periodically
   useEffect(() => {
@@ -20,28 +25,31 @@ export default function WatchlistView() {
 
     const updateQuotes = async () => {
       try {
-        const responses = await Promise.all(
-          watchlist.map((symbol) =>
-            fetch(`${API_BASE}/quote/${symbol}`).then((res) => res.json())
-          )
+        const quotesData = {};
+
+        await Promise.all(
+          watchlist.map(async (symbol) => {
+            try {
+              const quote = await MarketDataService.getQuote(symbol);
+              if (quote && quote.price) {
+                quotesData[symbol] = {
+                  price: quote.price,
+                  change: quote.changePercent || 0,
+                  volume: quote.volume || 0,
+                  high: quote.dayHigh || quote.price,
+                  low: quote.dayLow || quote.price,
+                  open: quote.open || quote.price,
+                  previousClose: quote.previousClose || quote.price,
+                };
+              }
+            } catch (err) {
+              console.error(`Error fetching quote for ${symbol}:`, err);
+            }
+          })
         );
 
-        const data = {};
-        responses.forEach((res) => {
-          if (res.ok) {
-            data[res.symbol] = {
-              price: res.price,
-              change: res.change,
-              volume: res.raw.volume,
-              high: res.raw.dayHigh,
-              low: res.raw.dayLow,
-              open: res.raw.open,
-              previousClose: res.raw.previousClose,
-            };
-          }
-        });
-
-        setQuotes(data);
+        setQuotes(quotesData);
+        setError("");
       } catch (err) {
         console.error("Quote fetch error:", err);
         setError("Failed to load live data.");
@@ -53,60 +61,93 @@ export default function WatchlistView() {
     return () => clearInterval(interval);
   }, [watchlist]);
 
-  // 🔍 Search API
+  // 🔍 Search API - triggers with just 1 letter
   const handleSearch = async (query) => {
     setNewSymbol(query.toUpperCase());
-    if (query.length < 2) {
+
+    console.log('Search triggered for:', query);
+
+    if (query.length < 1) {
       setSearchResults([]);
       return;
     }
 
     try {
-      const res = await fetch(`${API_BASE}/search?query=${query}`);
-      const data = await res.json();
-      if (data.ok) setSearchResults(data.results.slice(0, 6));
+      console.log('Calling MarketDataService.searchStocks with:', query);
+      const results = await MarketDataService.searchStocks(query);
+      console.log('Search results received:', results);
+
+      if (results && results.length > 0) {
+        setSearchResults(results.slice(0, 10));
+      } else {
+        console.log('No results found');
+        setSearchResults([]);
+      }
     } catch (err) {
       console.error("Search error:", err);
+      setSearchResults([]);
     }
   };
 
-  // ➕ Add symbol
+  // ➕ Add symbol - with auto .NS for Indian stocks
   const handleAddSymbol = async (symbolParam) => {
-    const symbol = (symbolParam || newSymbol).trim().toUpperCase();
+    let symbol = (symbolParam || newSymbol).trim().toUpperCase();
     if (!symbol) return;
+
+    // If typing directly (not from dropdown), try to add .NS for Indian stocks
+    if (!symbolParam && !symbol.includes('.')) {
+      const indianStocks = ['TCS', 'RELIANCE', 'INFY', 'HDFC', 'ICICI', 'WIPRO', 'BHARTI', 'ITC', 'SBIN', 'HCLT', 'TATAMOTORS', 'TATA', 'BAJAJ', 'MARUTI', 'ADANI'];
+      const usStocks = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'META', 'NVDA', 'AMD', 'NFLX', 'INTC'];
+
+      if (indianStocks.some(s => symbol.startsWith(s))) {
+        symbol = `${symbol}.NS`;
+      } else if (!usStocks.includes(symbol)) {
+        symbol = `${symbol}.NS`;
+      }
+    }
+
     if (watchlist.includes(symbol)) {
-      alert("Symbol already in your watchlist!");
+      alert("Stock already in your watchlist!");
       setNewSymbol("");
       setSearchResults([]);
       return;
     }
 
     setLoading(true);
+    setError("");
     try {
-      const res = await fetch(`${API_BASE}/quote/${symbol}`);
-      const data = await res.json();
-      if (!data.ok) throw new Error("Invalid stock symbol");
+      const quote = await MarketDataService.getQuote(symbol);
+      if (!quote || !quote.price) {
+        throw new Error("Invalid stock symbol");
+      }
 
-      const updatedList = [...watchlist, symbol];
+      const state = readState();
+      const updatedList = [...(state.watchlist || []), symbol];
+
+      const updatedState = { ...state, watchlist: updatedList };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedState));
+
       setWatchlist(updatedList);
-      localStorage.setItem("watchlist", JSON.stringify(updatedList));
+
       setQuotes((prev) => ({
         ...prev,
         [symbol]: {
-          price: data.price,
-          change: data.change,
-          volume: data.raw.volume,
-          high: data.raw.dayHigh,
-          low: data.raw.dayLow,
-          open: data.raw.open,
-          previousClose: data.raw.previousClose,
+          price: quote.price,
+          change: quote.changePercent || 0,
+          volume: quote.volume || 0,
+          high: quote.dayHigh || quote.price,
+          low: quote.dayLow || quote.price,
+          open: quote.open || quote.price,
+          previousClose: quote.previousClose || quote.price,
         },
       }));
+
       setNewSymbol("");
       setSearchResults([]);
+      setError("");
     } catch (err) {
       console.error("Add error:", err);
-      alert("Couldn't add this symbol.");
+      setError(`Could not find "${symbol}". Try selecting from search dropdown or use full symbol (e.g., TCS.NS).`);
     } finally {
       setLoading(false);
     }
@@ -114,19 +155,24 @@ export default function WatchlistView() {
 
   // ❌ Remove symbol
   const handleRemoveSymbol = (symbol) => {
-    const updated = watchlist.filter((s) => s !== symbol);
+    const state = readState();
+    const updated = (state.watchlist || []).filter((s) => s !== symbol);
+
+    const updatedState = { ...state, watchlist: updated };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedState));
+
     setWatchlist(updated);
-    localStorage.setItem("watchlist", JSON.stringify(updated));
   };
 
   // 🎨 Helpers
-  const formatPrice = (value) =>
-    value != null
-      ? `$${Number(value).toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`
-      : "—";
+  const formatPrice = (value, symbol) => {
+    if (value == null) return "—";
+    const currency = (symbol && (symbol.endsWith('.NS') || symbol.endsWith('.BO'))) ? '₹' : '$';
+    return `${currency}${Number(value).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -137,30 +183,31 @@ export default function WatchlistView() {
             type="text"
             value={newSymbol}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="🔍 Search stocks (e.g., NVDA, INFY, RELIANCE)"
+            placeholder="🔍 Type to search stocks (e.g., A for AAPL, T for TCS)"
             className="flex-1 bg-[#0d1324] border border-cyan-700/60 focus:border-cyan-400 rounded-xl p-3 text-white placeholder-gray-500 outline-none transition-all"
             onKeyDown={(e) => e.key === "Enter" && handleAddSymbol()}
           />
           <button
             onClick={() => handleAddSymbol()}
-            className="px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-500 hover:from-cyan-500 hover:to-blue-400 rounded-xl text-white font-semibold transition-all shadow-md"
+            disabled={loading}
+            className="px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-500 hover:from-cyan-500 hover:to-blue-400 rounded-xl text-white font-semibold transition-all shadow-md disabled:opacity-50"
           >
-            Add
+            {loading ? 'Adding...' : 'Add'}
           </button>
         </div>
 
         {/* Search Dropdown */}
         {searchResults.length > 0 && (
-          <div className="absolute z-20 mt-2 bg-[#0b1120] border border-cyan-800 rounded-xl w-full shadow-xl backdrop-blur-lg">
+          <div className="absolute z-20 mt-2 bg-[#0b1120] border border-cyan-800 rounded-xl w-full shadow-xl backdrop-blur-lg max-h-96 overflow-y-auto">
             {searchResults.map((item) => (
               <div
                 key={item.symbol}
                 onClick={() => handleAddSymbol(item.symbol)}
-                className="px-4 py-2 cursor-pointer hover:bg-cyan-900/40 text-white text-sm flex justify-between"
+                className="px-4 py-3 cursor-pointer hover:bg-cyan-900/40 text-white text-sm flex justify-between border-b border-gray-800 last:border-b-0"
               >
                 <span>
-                  <span className="font-semibold">{item.symbol}</span> —{" "}
-                  <span className="text-gray-400">{item.name}</span>
+                  <span className="font-semibold text-cyan-400">{item.symbol}</span> —{" "}
+                  <span className="text-gray-300">{item.name}</span>
                 </span>
                 <span className="text-gray-500 text-xs">{item.exchange}</span>
               </div>
@@ -180,14 +227,19 @@ export default function WatchlistView() {
             No stocks added yet 📭
           </p>
           <p className="text-sm text-gray-500">
-            Search and add your favorite stocks to start tracking live prices.
+            Type any letter to search and add stocks.
+          </p>
+          <p className="text-xs text-gray-600 mt-2">
+            💡 Tip: Select from dropdown for best results!
           </p>
         </motion.div>
       )}
 
       {/* Error */}
       {error && (
-        <div className="text-red-400 text-sm text-center mt-2">{error}</div>
+        <div className="text-red-400 text-sm text-center mt-2 bg-red-900/20 p-3 rounded-lg border border-red-700/30">
+          {error}
+        </div>
       )}
 
       {/* Watchlist Items */}
@@ -214,7 +266,7 @@ export default function WatchlistView() {
                   className={`text-xl font-bold ${isPositive ? "text-green-400" : "text-red-400"
                     }`}
                 >
-                  {formatPrice(quote?.price)}
+                  {quote ? formatPrice(quote.price, symbol) : "Loading..."}
                   {quote?.change != null && (
                     <span className="ml-2 text-sm">
                       ({isPositive ? "+" : ""}
@@ -223,11 +275,11 @@ export default function WatchlistView() {
                   )}
                 </div>
                 <div className="text-xs text-gray-400 mt-1">
-                  O:{formatPrice(quote?.open)} | H:{formatPrice(quote?.high)} | L:
-                  {formatPrice(quote?.low)} | Vol:{" "}
+                  O:{formatPrice(quote?.open, symbol)} | H:{formatPrice(quote?.high, symbol)} | L:
+                  {formatPrice(quote?.low, symbol)} | Vol:{" "}
                   {quote?.volume
                     ? quote.volume.toLocaleString()
-                    : "—"} | Prev: {formatPrice(quote?.previousClose)}
+                    : "—"} | Prev: {formatPrice(quote?.previousClose, symbol)}
                 </div>
               </div>
 
@@ -236,7 +288,7 @@ export default function WatchlistView() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleRemoveSymbol(symbol)}
-                className="ml-4 text-gray-400 hover:text-red-400 transition-all text-lg"
+                className="ml-4 text-gray-400 hover:text-red-400 transition-all text-2xl font-bold"
                 title="Remove stock"
               >
                 ×

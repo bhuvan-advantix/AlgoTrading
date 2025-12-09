@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 
 // --- App State Hook ---
-const useAdvantixState = () => {
+const usePulse915State = () => {
     // Alert state
     const [alert, setAlert] = useState(null); // { type: 'success'|'error'|'info', message: '...' }
     const alertUser = useCallback((newAlert) => {
@@ -16,7 +16,7 @@ const useAdvantixState = () => {
     // Navigation state
     const [currentPage, setCurrentPage] = useState('dashboard');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    
+
     // User and authentication state
     const { user } = useUser();
     const [userId, setUserId] = useState(null);
@@ -52,4 +52,4 @@ const useAdvantixState = () => {
     return contextValue;
 };
 
-export default useAdvantixState;
+export default usePulse915State;

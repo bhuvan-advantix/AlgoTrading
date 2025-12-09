@@ -1007,8 +1007,11 @@ export default function AccountView() {
                   if (idx === 0) console.log(`📋 Order ${idx}: ${t.symbol} ${t.side} - isAI: ${isAI}`);
                   const isBuy = t.side === 'BUY';
                   const gross = Number(t.price) * Number(t.qty);
-                  const brokerage = Number(t.brokerage || 0);
-                  const taxes = Number(t.totalCharges || 0);
+                  // Correctly access brokerage from nested charges object
+                  const brokerage = Number(t.charges?.brokerage || 0);
+                  // Taxes = totalCharges - brokerage (to show only tax portion)
+                  const totalCharges = Number(t.totalCharges || 0);
+                  const taxes = totalCharges - brokerage;
                   const net = Number(t.netAmount || gross);
                   const currencySymbol = t.currency === 'INR' ? '₹' : '$';
 

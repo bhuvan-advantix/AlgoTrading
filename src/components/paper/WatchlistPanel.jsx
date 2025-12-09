@@ -2,10 +2,10 @@ const s = input.trim().toUpperCase();
 if (!s) return;
 fetch(`${MARKET_API_URL}/quote/${encodeURIComponent(s)}`).then(r => r.json()).then(j => {
   if (!j.price) return alert('Symbol not found');
-  const st = JSON.parse(localStorage.getItem('advantix_paper_v3') || '{}');
+  const st = JSON.parse(localStorage.getItem('pulse915_paper_v3') || '{}');
   st.watchlist = st.watchlist || [];
   if (!st.watchlist.includes(s)) st.watchlist.push(s);
-  localStorage.setItem('advantix_paper_v3', JSON.stringify(st));
+  localStorage.setItem('pulse915_paper_v3', JSON.stringify(st));
   setInput('');
   refresh();
 }).catch(() => alert('Symbol lookup failed'));

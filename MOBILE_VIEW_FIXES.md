@@ -1,20 +1,20 @@
-# Mobile View Fixes for Advantix AGI Application
+# Mobile View Fixes for PULSE915Application
 
 ## Summary of Changes
 
 ### 1. **App.jsx Mobile Header** (Lines 1684-1705)
-**Issue**: "ADVANTIX AGI" title was wrapping awkwardly on small mobile screens
+**Issue**: "PULSE915" title was wrapping awkwardly on small mobile screens
 **Fix**: 
 - Very small screens (< 640px): Shows "ADVANTIX" only
-- Tablet and up (≥ 640px): Shows "ADVANTIX AGI"
+- Tablet and up (≥ 640px): Shows "PULSE915"
 - Added `flex-shrink-0` to prevent button compression
 - Reduced font size from `text-xl` to `text-base` on mobile
 
 ### 2. **App.jsx Mobile Sidebar** (Lines 1651-1695)
 **Issue**: Mobile sidebar lacked branding and professional structure
 **Fix**:
-- Added header section with "ADVANTIX AGI" branding
-- Added version info "Advantix AGI | v1.1"
+- Added header section with "PULSE915" branding
+- Added version info "PULSE915| v1.1"
 - Improved close button placement
 - Added footer with User ID and App ID
 - Better spacing and organization with proper sections
