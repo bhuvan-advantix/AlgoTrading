@@ -281,6 +281,9 @@ function TradingHistoryPanel() {
   const profit = stats.totalSold - stats.totalBought - stats.totalCharges;
   const profitPercent = stats.totalBought > 0 ? ((profit / stats.totalBought) * 100) : 0;
 
+  // Calculate Period P&L (for selected date range)
+  const selectedPeriodPnL = profit;
+
   const stockPerformance = {};
   filteredOrders.forEach(order => {
     if (!stockPerformance[order.symbol]) {
@@ -462,7 +465,7 @@ function TradingHistoryPanel() {
           <div className="space-y-2">
             {suggestions.map((sug, idx) => (
               <div key={idx} className={`flex items-start gap-2 text-sm p-2 rounded ${sug.type === 'success' ? 'bg-green-900/20' :
-                  sug.type === 'warning' ? 'bg-orange-900/20' : 'bg-blue-900/20'
+                sug.type === 'warning' ? 'bg-orange-900/20' : 'bg-blue-900/20'
                 }`}>
                 <span className="text-lg">{sug.icon}</span>
                 <span className="text-gray-200">{sug.text}</span>
@@ -473,7 +476,7 @@ function TradingHistoryPanel() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
         <div className="bg-green-900/20 border border-green-700/30 p-3 rounded-lg">
           <div className="text-xs text-green-400 mb-1">Money Spent (Buying)</div>
           <div className="text-lg font-bold text-green-300">₹{stats.totalBought.toFixed(2)}</div>
@@ -491,6 +494,13 @@ function TradingHistoryPanel() {
         <div className="bg-orange-900/20 border border-orange-700/30 p-3 rounded-lg">
           <div className="text-xs text-orange-400 mb-1">Taxes Paid</div>
           <div className="text-lg font-bold text-orange-300">₹{stats.totalTaxes.toFixed(2)}</div>
+        </div>
+        <div className={`border p-3 rounded-lg ${selectedPeriodPnL >= 0 ? 'bg-emerald-900/20 border-emerald-700/30' : 'bg-red-900/20 border-red-700/30'}`}>
+          <div className={`text-xs mb-1 ${selectedPeriodPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>Daily P&L</div>
+          <div className={`text-lg font-bold ${selectedPeriodPnL >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+            {selectedPeriodPnL >= 0 ? '+' : ''}₹{selectedPeriodPnL.toFixed(2)}
+          </div>
+          <div className="text-xs text-gray-400">Selected Period</div>
         </div>
       </div>
 

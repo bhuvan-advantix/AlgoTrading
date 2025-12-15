@@ -19,6 +19,16 @@ export default function ChartSection({ symbol, quote }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Determine currency symbol based on stock symbol
+  const getCurrencySymbol = () => {
+    if (!symbol) return '$';
+    const upperSymbol = symbol.toUpperCase();
+    // Indian stocks end with .NS (NSE) or .BO (BSE)
+    return (upperSymbol.endsWith('.NS') || upperSymbol.endsWith('.BO')) ? '₹' : '$';
+  };
+
+  const currencySymbol = getCurrencySymbol();
+
   useEffect(() => {
     const fetchData = async () => {
       if (!symbol) return;
@@ -115,7 +125,7 @@ export default function ChartSection({ symbol, quote }) {
 
           <YAxis
             domain={['auto', 'auto']}
-            tickFormatter={(value) => `$${value.toFixed(2)}`}
+            tickFormatter={(value) => `${currencySymbol}${value.toFixed(2)}`}
             stroke="#b0bec5"
             orientation="right"
           />
@@ -128,7 +138,7 @@ export default function ChartSection({ symbol, quote }) {
             contentStyle={{ backgroundColor: '#1a237e', border: '1px solid #00bcd4', borderRadius: '4px', padding: '8px' }}
             formatter={(value, name) => {
               if (name === 'volume') return [`${(value / 1000000).toFixed(1)}M`, 'Volume'];
-              return [`$${Number(value).toFixed(2)}`, name.charAt(0).toUpperCase() + name.slice(1)];
+              return [`${currencySymbol}${Number(value).toFixed(2)}`, name.charAt(0).toUpperCase() + name.slice(1)];
             }}
             labelFormatter={(time) => new Date(time).toLocaleString()}
           />
@@ -247,11 +257,11 @@ export default function ChartSection({ symbol, quote }) {
           {stats && (
             <div className="text-sm text-gray-300 space-y-2">
               <div className="flex justify-between"><span className="text-gray-400">Period</span><span>{stats.count} points</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Start / End</span><span>${formatNum(stats.first)} → ${formatNum(stats.last)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Start / End</span><span>{currencySymbol}{formatNum(stats.first)} → {currencySymbol}{formatNum(stats.last)}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Period return</span><span className={stats.periodReturn >= 0 ? 'text-green-400' : 'text-red-400'}>{stats.periodReturn.toFixed(2)}%</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Avg return</span><span>{formatPct(stats.avgReturn)}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Volatility (σ)</span><span>{(stats.stddev * 100).toFixed(2)}%</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Low / High</span><span>${formatNum(stats.min)} / ${formatNum(stats.max)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Low / High</span><span>{currencySymbol}{formatNum(stats.min)} / {currencySymbol}{formatNum(stats.max)}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Total volume</span><span>{stats.totalVolume ? stats.totalVolume.toLocaleString() : '—'}</span></div>
             </div>
           )}

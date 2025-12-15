@@ -1,0 +1,1 @@
+sma_20,sma_50,rsi,macd,volume_change,price_change,Close

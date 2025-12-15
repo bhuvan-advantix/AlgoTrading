@@ -81,7 +81,7 @@ const AuthLayout = ({ title, subtitle, children }) => {
             <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shadow-blue-500/30 ring-1 ring-white/20">
               <ZapIcon className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold tracking-tight text-white">Advantix AGI</span>
+            <span className="text-2xl font-bold tracking-tight text-white">PULSE915</span>
           </div>
 
           <motion.div
@@ -147,7 +147,7 @@ const AuthLayout = ({ title, subtitle, children }) => {
               <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shadow-blue-500/30">
                 <ZapIcon className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold text-white">Advantix AGI</span>
+              <span className="text-xl font-bold text-white">PULSE915</span>
             </div>
           </div>
 
@@ -183,7 +183,7 @@ const ClerkLoginPage = () => {
         const nodes = Array.from(document.querySelectorAll('h1, h2, h3, p, span'));
         nodes.forEach((n) => {
           if (n && typeof n.textContent === 'string' && /uber[_\s]?clone/i.test(n.textContent)) {
-            n.textContent = n.textContent.replace(/uber[_\s]?clone/gi, 'Advantix AGI');
+            n.textContent = n.textContent.replace(/uber[_\s]?clone/gi, 'PULSE915');
           }
         });
       } catch { /* ignore */ }
@@ -242,7 +242,7 @@ const ClerkSignUpPage = () => {
       const nodes = Array.from(document.querySelectorAll('h1, h2, h3, p, span'));
       nodes.forEach((n) => {
         if (n && typeof n.textContent === 'string' && /uber[_\s]?clone/i.test(n.textContent)) {
-          n.textContent = n.textContent.replace(/uber[_\s]?clone/gi, 'Advantix AGI');
+          n.textContent = n.textContent.replace(/uber[_\s]?clone/gi, 'PULSE915');
         }
       });
     } catch { /* ignore */ }

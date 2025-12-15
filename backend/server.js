@@ -1,5 +1,5 @@
 import express from 'express';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
 import cors from 'cors';
 
 const app = express();
@@ -26,9 +26,8 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Fix for ESM import compatibility: Instantiate the class
-const YFClass = yahooFinance.default || yahooFinance;
-const yf = new YFClass();
+// Initialize YahooFinance v3 (as per migration guide)
+const yahooFinance = new YahooFinance();
 
 // Basic health check
 app.get('/', (req, res) => {
@@ -49,8 +48,8 @@ app.get('/api/quote/:symbol', async (req, res) => {
 
     // Fetch quote and historical data in parallel
     const [quote, history] = await Promise.all([
-      yf.quote(sym),
-      yf.chart(sym, { period1: startDate, interval: '1d' })
+      yahooFinance.quote(sym),
+      yahooFinance.chart(sym, { period1: startDate, interval: '1d' })
     ]);
 
     if (!quote) {
@@ -101,6 +100,80 @@ app.get('/api/quote/:symbol', async (req, res) => {
   }
 });
 
+// OHLCV endpoint for enhanced market data service
+app.get('/api/market/ohlcv/:symbol', async (req, res) => {
+  const { symbol } = req.params;
+  const { period = '1mo' } = req.query;
+
+  try {
+    const sym = symbol.toUpperCase();
+    console.log(`Fetching OHLCV for: ${sym}, period: ${period}`);
+
+    // Calculate start date based on period
+    const startDate = new Date();
+    if (period === '1mo') {
+      startDate.setMonth(startDate.getMonth() - 1);
+    } else if (period === '3mo') {
+      startDate.setMonth(startDate.getMonth() - 3);
+    } else if (period === '1y') {
+      startDate.setFullYear(startDate.getFullYear() - 1);
+    }
+
+    const history = await yahooFinance.chart(sym, {
+      period1: startDate,
+      interval: '1d'
+    });
+
+    if (!history || !history.quotes || history.quotes.length === 0) {
+      return res.status(404).json({ ok: false, error: 'No data found' });
+    }
+
+    const prices = history.quotes.map(q => ({
+      date: q.date,
+      open: q.open,
+      high: q.high,
+      low: q.low,
+      close: q.close,
+      volume: q.volume
+    }));
+
+    res.json({
+      ok: true,
+      symbol: sym,
+      prices: prices
+    });
+  } catch (err) {
+    console.error(`OHLCV error for ${symbol}:`, err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Market quote endpoint (simplified)
+app.get('/api/market/quote/:symbol', async (req, res) => {
+  const { symbol } = req.params;
+
+  try {
+    const sym = symbol.toUpperCase();
+    const quote = await yahooFinance.quote(sym);
+
+    if (!quote) {
+      return res.status(404).json({ ok: false, error: 'Symbol not found' });
+    }
+
+    res.json({
+      ok: true,
+      symbol: sym,
+      price: quote.regularMarketPrice,
+      changePercent: quote.regularMarketChangePercent,
+      previousClose: quote.regularMarketPreviousClose,
+      currency: quote.currency
+    });
+  } catch (err) {
+    console.error(`Quote error for ${symbol}:`, err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Search endpoint - Returns ALL stocks and ETFs from Yahoo Finance with live data
 app.get('/api/search', async (req, res) => {
   const { query } = req.query;
@@ -109,7 +182,7 @@ app.get('/api/search', async (req, res) => {
   try {
     console.log(`Searching for: ${query}`);
 
-    const result = await yf.search(query);
+    const result = await yahooFinance.search(query);
 
     // Include EQUITY and ETF types - Yahoo Finance returns ALL matching results worldwide
     const quotes = result.quotes

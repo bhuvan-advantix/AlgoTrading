@@ -873,7 +873,7 @@ export default function AccountView() {
                               <td className={`px-3 py-2 font-semibold ${String(o.side || o.transaction_type || '').toLowerCase().includes('sell') ? 'text-red-400' : 'text-emerald-400'}`}>
                                 {o.side || o.transaction_type || '—'}
                               </td>
-                              <td className="px-3 py-2 text-right">{formatNumber(o.qty || o.quantity || o.filled_quantity || 0)}</td>
+                              <td className="px-3 py-2 text-right">{formatQty(o.qty || o.quantity || o.filled_quantity || 0)}</td>
                               <td className="px-3 py-2 text-right">{o.price ? formatCurrency(o.price) : (o.average_price ? formatCurrency(o.average_price) : '—')}</td>
                               <td className="px-3 py-2 text-right">{o.amount ? formatCurrency(o.amount) : '—'}</td>
                               <td className="px-3 py-2 text-right text-xs text-emerald-300">{o.status || 'FILLED'}</td>
@@ -909,7 +909,7 @@ export default function AccountView() {
                               <td className="px-3 py-2 text-xs">{o.ts ? new Date(o.ts).toLocaleString() : (o.order_timestamp ? new Date(o.order_timestamp).toLocaleString() : '—')}</td>
                               <td className="px-3 py-2 font-semibold text-white">{o.symbol || o.tradingsymbol || '—'}</td>
                               <td className="px-3 py-2 text-xs text-red-300">{o.error || o.rejection_reason || o.message || 'Unknown error'}</td>
-                              <td className="px-3 py-2 text-right">{formatNumber(o.qty || o.quantity || 0)}</td>
+                              <td className="px-3 py-2 text-right">{formatQty(o.qty || o.quantity || 0)}</td>
                               <td className="px-3 py-2 text-right">{o.price ? formatCurrency(o.price) : '—'}</td>
                               <td className="px-3 py-2 text-right text-xs text-red-300">{o.status || 'REJECTED'}</td>
                             </tr>

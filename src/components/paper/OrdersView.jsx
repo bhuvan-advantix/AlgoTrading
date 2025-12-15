@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { readState } from '../../utils/paperTradingStore';
 
 export default function OrdersView() {
+  // Helper to format quantity without excessive zeros
+  const formatQty = (v) => {
+    if (!v) return '0';
+    const n = Number(v);
+    if (Number.isInteger(n)) return n.toString();
+    return n.toFixed(8).replace(/\.?0+$/, '');
+  };
+
   const [orders, setOrders] = useState(() => {
     const st = readState();
     return (st.orders || []).sort((a, b) => new Date(b.ts) - new Date(a.ts));
@@ -24,7 +32,7 @@ export default function OrdersView() {
     return () => window.removeEventListener('paper-trade-update', onUpdate);
   }, []);
 
-  const getFilteredOrders = () => {
+  const filteredOrders = useMemo(() => {
     let filtered = [...orders];
 
     // Apply type filter
@@ -54,18 +62,18 @@ export default function OrdersView() {
     }
 
     return filtered;
-  };
+  }, [orders, filter, timeRange, customStartDate, customEndDate]);
 
-  // Calculate statistics - ALWAYS use ALL orders for accurate profit/loss
-  const calculateStats = () => {
+  // Calculate statistics from filtered orders
+  const stats = useMemo(() => {
     let totalBought = 0;
     let totalSold = 0;
     let totalBrokerage = 0;
     let totalTaxes = 0;
     let totalCharges = 0;
 
-    // Use ALL orders (not filtered) for profit calculation
-    orders.forEach(order => {
+    // Use filtered orders for stats calculation
+    filteredOrders.forEach(order => {
       const grossAmt = order.amount || 0;
 
       // Extract charges
@@ -102,11 +110,9 @@ export default function OrdersView() {
       totalCharges,
       grossProfit,
       netProfit,
-      tradeCount: getFilteredOrders().length
+      tradeCount: filteredOrders.length
     };
-  };
-
-  const stats = calculateStats();
+  }, [filteredOrders]);
 
   return (
     <div className="space-y-4">
@@ -252,7 +258,7 @@ export default function OrdersView() {
             </thead>
             <tbody>
               <AnimatePresence>
-                {getFilteredOrders().map(order => {
+                {filteredOrders.map(order => {
                   const isAI = order.isAIOrder === true || order.isAIOrder === 'true' || order.aiSymbol === '🤖' || order.tag === 'AI_TRADING' || order.source === 'AI';
                   const currencySymbol = order.currency
                     ? (order.currency === 'INR' ? '₹' : '$')
@@ -282,7 +288,7 @@ export default function OrdersView() {
                         </span>
                       </td>
                       <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-white">
-                        {Number(order.qty).toFixed(8)}
+                        {formatQty(order.qty)}
                       </td>
                       <td className="p-2 sm:p-4 text-right text-xs sm:text-sm text-white">
                         {currencySymbol}{Number(order.price).toFixed(2)}
@@ -311,7 +317,7 @@ export default function OrdersView() {
                   );
                 })}
 
-                {getFilteredOrders().length === 0 && (
+                {filteredOrders.length === 0 && (
                   <tr>
                     <td colSpan="10" className="text-center py-8 text-sm text-gray-400">
                       No orders found
@@ -330,11 +336,11 @@ export default function OrdersView() {
           onClick={() => {
             const csv = [
               ['Date', 'Symbol', 'Type', 'Quantity', 'Price', 'Gross Amount', 'Brokerage', 'Taxes', 'Net Amount', 'Status'],
-              ...getFilteredOrders().map(o => [
+              ...filteredOrders.map(o => [
                 new Date(o.ts).toLocaleString(),
                 (o.isAIOrder ? '🤖 ' : '') + o.symbol,
                 o.side,
-                Number(o.qty).toFixed(8),
+                formatQty(o.qty),
                 Number(o.price).toFixed(2),
                 Number(o.amount).toFixed(2),
                 Number(o.charges?.brokerage || 0).toFixed(2),

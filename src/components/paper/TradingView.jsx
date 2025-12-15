@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import ChartSection from './ChartSection';
 import OrderForm from './OrderForm';
 import PortfolioSummary from './PortfolioSummary';
+import SimpleAITrading from './SimpleAITrading';
 import MarketDataService from '../../services/marketDataService';
 import { placeMarketOrder, readState, subscribePrice, setPrice } from '../../utils/paperTradingStore';
 
@@ -129,6 +130,7 @@ export default function TradingViewProfessional() {
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimer = useRef(null);
   const [now, setNow] = useState(new Date());
+  const [showAITrading, setShowAITrading] = useState(false);
 
   // Clock update
   useEffect(() => {
@@ -327,6 +329,12 @@ export default function TradingViewProfessional() {
               <span className="font-medium">{now.toLocaleString()}</span>
             </div>
             <div className="flex gap-2 w-full md:w-auto">
+              <button
+                onClick={() => setShowAITrading(true)}
+                className="flex-1 md:flex-none justify-center items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg text-xs sm:text-sm font-bold text-white shadow-lg shadow-purple-500/30 hover:from-purple-700 hover:to-indigo-700 whitespace-nowrap transition-all"
+              >
+                ⚡ AI Trading
+              </button>
               <button className="flex-1 md:flex-none justify-center items-center px-3 py-2 bg-slate-800/60 border border-slate-700/30 rounded-lg text-xs sm:text-sm text-slate-200 hover:bg-slate-800/80 whitespace-nowrap">Export</button>
               <button className="flex-1 md:flex-none justify-center items-center px-3 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-lg text-xs sm:text-sm font-semibold shadow-md whitespace-nowrap">Reset</button>
             </div>
@@ -409,6 +417,13 @@ export default function TradingViewProfessional() {
         {/* Footer small note */}
         <div className="mt-6 text-xs text-slate-500">Data provided by your configured MarketDataService — live feeds, no dummy data. Make sure API keys are configured on the backend.</div>
       </div>
+
+      {/* AI Trading Modal */}
+      <SimpleAITrading
+        show={showAITrading}
+        onClose={() => setShowAITrading(false)}
+        mode="paper"
+      />
     </div>
   );
 }
