@@ -29,9 +29,39 @@ app.use(express.json());
 // Initialize YahooFinance v3 (as per migration guide)
 const yahooFinance = new YahooFinance();
 
+// Cache for quote data to reduce API calls
+const quoteCache = new Map();
+const CACHE_DURATION = 10000; // 10 seconds cache
+
+// Rate limiting - max 1 request per 500ms per symbol
+const requestQueue = new Map();
+const REQUEST_DELAY = 500; // 500ms between requests for same symbol
+
+// Helper function to get cached data or fetch new
+async function getCachedQuote(symbol) {
+  const now = Date.now();
+  const cached = quoteCache.get(symbol);
+
+  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+    console.log(`✅ Cache hit for ${symbol}`);
+    return cached.data;
+  }
+
+  // Check rate limit
+  const lastRequest = requestQueue.get(symbol);
+  if (lastRequest && (now - lastRequest) < REQUEST_DELAY) {
+    const waitTime = REQUEST_DELAY - (now - lastRequest);
+    console.log(`⏳ Rate limiting ${symbol}, waiting ${waitTime}ms`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+
+  requestQueue.set(symbol, Date.now());
+  return null; // Need to fetch
+}
+
 // Basic health check
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'Market Data Service' });
+  res.json({ status: 'ok', service: 'Market Data Service', cache: quoteCache.size });
 });
 
 // Real live data endpoint using Yahoo Finance
@@ -40,7 +70,14 @@ app.get('/api/quote/:symbol', async (req, res) => {
   const { symbol } = req.params;
   try {
     const sym = symbol.toUpperCase();
-    console.log(`Fetching quote/history for: ${sym}`);
+
+    // Check cache first
+    const cached = await getCachedQuote(sym);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    console.log(`🔄 Fetching fresh data for: ${sym}`);
 
     // Calculate start date for 1 month history
     const startDate = new Date();
@@ -82,9 +119,8 @@ app.get('/api/quote/:symbol', async (req, res) => {
     // Detect currency - Yahoo sometimes returns wrong currency for Indian stocks
     const isIndian = sym.endsWith('.NS') || sym.endsWith('.BO');
     const currency = isIndian ? 'INR' : (quote.currency || 'USD');
-    console.log(`Quote for ${sym}: currency=${currency}`);
 
-    res.json({
+    const responseData = {
       ok: true,
       symbol: sym,
       currentPrice: quote.regularMarketPrice,
@@ -93,9 +129,29 @@ app.get('/api/quote/:symbol', async (req, res) => {
       marketState: quote.marketState,
       historicalPrices: historicalPrices.map(h => h.close),
       history: historicalPrices
+    };
+
+    // Cache the response
+    quoteCache.set(sym, {
+      data: responseData,
+      timestamp: Date.now()
     });
+
+    console.log(`✅ Cached ${sym}, total cache size: ${quoteCache.size}`);
+
+    res.json(responseData);
   } catch (err) {
     console.error(`Yahoo Finance error for ${symbol}:`, err.message);
+
+    // If rate limited, return cached data if available (even if expired)
+    if (err.message.includes('429') || err.message.includes('Too Many Requests')) {
+      const staleCache = quoteCache.get(symbol.toUpperCase());
+      if (staleCache) {
+        console.log(`⚠️ Rate limited, returning stale cache for ${symbol}`);
+        return res.json(staleCache.data);
+      }
+    }
+
     res.status(500).json({ ok: false, error: err.message });
   }
 });

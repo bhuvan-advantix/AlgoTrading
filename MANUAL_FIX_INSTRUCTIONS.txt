@@ -1,0 +1,46 @@
+// COMPLETE INSTRUCTIONS TO FIX executeAllTrades
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * MANUAL FIX REQUIRED - Copy and paste this code
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+// 1. Open: src/components/paper/SimpleAITrading.jsx
+// 2. Go to line 210 (right after the validation check)
+// 3. DELETE everything from line 210 to line 244
+// 4. PASTE the code below:
+
+        // Request notification permission
+        await tradeMonitorService.requestNotificationPermission();
+
+        // Prepare recommendations for monitoring
+        const enabledStocks = allocation.stocks.filter(stock => stock.enabled && stock.quantity > 0);
+
+        if (enabledStocks.length === 0) {
+            alert('No enabled stocks with valid quantities');
+            return;
+        }
+
+        // Start monitoring
+        tradeMonitorService.startMonitoring(enabledStocks);
+
+        // Show confirmation
+        alert(
+            '🔍 Trade Monitoring Started!\n\n' +
+            `Monitoring ${enabledStocks.length} stocks:\n` +
+            enabledStocks.map(s => `• ${s.symbol}: Entry=₹${s.entry}, Stop=₹${s.stop}, Target=₹${s.target}`).join('\n') +
+            '\n\nThe system will:\n' +
+            '✅ Buy when price reaches entry\n' +
+            '🛑 Sell at stop loss if price drops\n' +
+            '🎯 Sell at target if price rises\n' +
+            '⏰ Auto-exit after 3 hours\n\n' +
+            'Check console (F12) for live updates!'
+        );
+
+        setStatus('🔍 Monitoring trades... Check console for updates');
+    };
+
+// 5. Save the file (Ctrl+S)
+// 6. Browser will reload automatically
+// 7. Test by clicking "Execute All Trades"

@@ -1,11 +1,11 @@
-// Gemini AI Service for Intelligent Stock Recommendations
-const OPENROUTER_API_KEY = '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';
+// AI Service for Intelligent Stock Recommendations
+const MISTRAL_API_KEY = 'BJLKkmEWSQxZp7OzUoACIyxxWGWbnP6x';
 
 class GeminiAIService {
     constructor() {
-        this.apiKey = OPENROUTER_API_KEY;
-        this.baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
-        this.model = 'openai/gpt-4o-mini'; // ChatGPT 4o-mini
+        this.apiKey = MISTRAL_API_KEY;
+        this.baseUrl = 'https://api.mistral.ai/v1/chat/completions';
+        this.model = 'mistral-large-latest'; // Best Mistral model
     }
 
     /**
@@ -25,9 +25,7 @@ class GeminiAIService {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.apiKey}`,
-                    'Content-Type': 'application/json',
-                    'HTTP-Referer': window.location.origin,
-                    'X-Title': 'AI Trading System'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     model: this.model,
@@ -42,13 +40,13 @@ class GeminiAIService {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('OpenRouter API error:', response.status, errorText);
+                console.error('Mistral AI error:', response.status, errorText);
                 console.error('Using fallback recommendations due to API error');
                 return this.getFallbackRecommendations(MAX_STOCKS);
             }
 
             const data = await response.json();
-            console.log('OpenRouter API response received:', data);
+            console.log('Mistral AI response received:', data);
 
             const recommendations = this.parseOpenRouterResponse(data);
             console.log('Parsed recommendations:', recommendations);

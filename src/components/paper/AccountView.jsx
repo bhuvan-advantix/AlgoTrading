@@ -469,8 +469,24 @@ export default function AccountView() {
   const COLORS = ['#00bcd4', '#1e88e5', '#00e676', '#ff5252'];
 
   // --- Add Funds ---
+  const [showAddFunds, setShowAddFunds] = useState(false);
+  const [fundsAmount, setFundsAmount] = useState(10000);
+
   const handleAddFunds = () => {
-    console.log('Add funds not yet supported');
+    setShowAddFunds(true);
+  };
+
+  const confirmAddFunds = () => {
+    if (fundsAmount && fundsAmount > 0) {
+      const st = readState();
+      st.wallet.cash += fundsAmount;
+      // Use the correct storage key 'adv_paper_v2'
+      localStorage.setItem('adv_paper_v2', JSON.stringify(st));
+      setBalance(st.wallet.cash);
+      window.dispatchEvent(new Event('paper-trade-update'));
+      setShowAddFunds(false);
+      alert(`✅ Successfully added ₹${fundsAmount.toLocaleString('en-IN')} to your account!`);
+    }
   };
 
   // --- Reset Account ---
@@ -494,13 +510,13 @@ export default function AccountView() {
     <div className="space-y-6">
       {/* === Account Summary === */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="Available Balance" value={balance} color="#00bcd4" prefix="$" />
-        <Card title="Invested Value" value={currentMarketValue} color="#1e88e5" prefix="$" />
+        <Card title="Available Balance" value={balance} color="#00bcd4" prefix="₹" />
+        <Card title="Invested Value" value={currentMarketValue} color="#1e88e5" prefix="₹" />
         <Card
           title="Today's P&L"
           value={Math.abs(todaysPnL)}
           color={todaysPnL >= 0 ? '#00e676' : '#ff5252'}
-          prefix={todaysPnL >= 0 ? '+$' : '-$'}
+          prefix={todaysPnL >= 0 ? '+₹' : '-₹'}
           suffix={` (${pnlPercent}%)`}
         />
       </div>
@@ -520,7 +536,7 @@ export default function AccountView() {
                   border: '1px solid #00bcd4',
                   color: '#fff',
                 }}
-                formatter={(v) => [`$${v.toFixed(2)}`, 'Value']}
+                formatter={(v) => [`₹${v.toFixed(2)}`, 'Value']}
               />
               <Line
                 type="monotone"
@@ -550,7 +566,7 @@ export default function AccountView() {
                   <Cell key={i} fill={COLORS[i]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+              <Tooltip formatter={(v) => `₹${v.toFixed(2)}`} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -562,7 +578,7 @@ export default function AccountView() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="name" stroke="#6b7280" />
               <YAxis stroke="#6b7280" />
-              <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+              <Tooltip formatter={(v) => `₹${v.toFixed(2)}`} />
               <Bar dataKey="value" barSize={40}>
                 {profitData.map((_, i) => (
                   <Cell key={i} fill={COLORS[i + 2]} />
@@ -1050,7 +1066,7 @@ export default function AccountView() {
           onClick={handleAddFunds}
           className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-500 rounded-xl text-white font-medium hover:opacity-90"
         >
-          Add $10,000
+          💰 Add Funds
         </button>
 
         <button
@@ -1060,6 +1076,77 @@ export default function AccountView() {
           Reset Account
         </button>
       </div >
+
+      {/* Add Funds Modal */}
+      {showAddFunds && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-[#1a2332] border border-cyan-600 rounded-xl w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-4">💰 Add Funds to Account</h3>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Amount to Add</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 font-bold">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1000"
+                    value={fundsAmount}
+                    onChange={(e) => setFundsAmount(Number(e.target.value))}
+                    className="w-full pl-8 pr-4 py-3 bg-[#0f1724] border border-gray-600 rounded-lg text-white text-lg font-semibold focus:border-cyan-500 focus:outline-none"
+                    placeholder="Enter amount"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Amount Buttons */}
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setFundsAmount(10000)}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition-colors"
+                >
+                  ₹10,000
+                </button>
+                <button
+                  onClick={() => setFundsAmount(50000)}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition-colors"
+                >
+                  ₹50,000
+                </button>
+                <button
+                  onClick={() => setFundsAmount(100000)}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition-colors"
+                >
+                  ₹1,00,000
+                </button>
+              </div>
+
+              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3">
+                <div className="text-xs text-cyan-300 mb-1">New Balance</div>
+                <div className="text-2xl font-bold text-cyan-400">
+                  ₹{(balance + fundsAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+                onClick={() => setShowAddFunds(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-500 hover:from-cyan-500 hover:to-blue-400 rounded-lg text-white font-semibold transition-all"
+                onClick={confirmAddFunds}
+                disabled={!fundsAmount || fundsAmount <= 0}
+              >
+                Add ₹{fundsAmount.toLocaleString('en-IN')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 }

@@ -22,6 +22,8 @@ import EnhancedMarketDataService from '../../services/enhancedMarketDataService'
 import FinnhubService from '../../services/finnhubService';
 import { calculateStockAllocation, validateAllocationParams, formatCurrency } from '../../utils/stockAllocation';
 import { placeMarketOrder } from '../../utils/paperTradingStore';
+import { tradeMonitorService } from '../../services/tradeMonitorService';
+import LiveTradeMonitor from './LiveTradeMonitor';
 
 export default function SimpleAITrading({ show, onClose, mode = 'paper' }) {
     // Configuration state
@@ -40,6 +42,7 @@ export default function SimpleAITrading({ show, onClose, mode = 'paper' }) {
     const [isLoading, setIsLoading] = useState(false);
     const [status, setStatus] = useState('');
     const [marketSentiment, setMarketSentiment] = useState(null);
+    const [showMonitor, setShowMonitor] = useState(false);
 
     // Get AI recommendations
     const getRecommendations = async () => {
@@ -190,7 +193,7 @@ export default function SimpleAITrading({ show, onClose, mode = 'paper' }) {
     };
 
     // Execute all trades
-    const executeAllTrades = () => {
+    const executeAllTrades = async () => {
         if (!allocation || allocation.stocks.length === 0) {
             alert('No stocks to trade');
             return;
@@ -207,41 +210,27 @@ export default function SimpleAITrading({ show, onClose, mode = 'paper' }) {
             if (!confirm) return;
         }
 
-        let successCount = 0;
-        let failCount = 0;
+        // Request notification permission
+        await tradeMonitorService.requestNotificationPermission();
 
-        allocation.stocks.forEach(stock => {
-            const result = placeMarketOrder({
-                symbol: stock.symbol,
-                side: 'BUY',
-                qty: stock.quantity,
-                amount: 0,
-                stopLoss: stock.stop,
-                takeProfit: stock.target,
-                isAIOrder: true,
-                executionPrice: stock.entry
-            });
+        // Prepare recommendations for monitoring (all stocks with quantity > 0)
+        const enabledStocks = allocation.stocks.filter(stock => stock.quantity > 0);
 
-            if (result.success) {
-                successCount++;
-            } else {
-                failCount++;
-                console.error(`Failed to place order for ${stock.symbol}:`, result.reason);
-            }
-        });
-
-        alert(`Trades executed:\n✅ Success: ${successCount}\n❌ Failed: ${failCount}`);
-
-        if (successCount > 0) {
-            window.dispatchEvent(new CustomEvent('paper-trade-update'));
-
-            // Auto-close after 2 hours
-            setTimeout(() => {
-                alert('Auto-closing positions after 2 hours (intraday trading)');
-                // TODO: Implement auto-close logic
-            }, 2 * 60 * 60 * 1000);
+        if (enabledStocks.length === 0) {
+            alert('No enabled stocks with valid quantities');
+            return;
         }
+
+        // Start monitoring
+        tradeMonitorService.startMonitoring(enabledStocks);
+
+        // Show live monitor popup
+        setShowMonitor(true);
+
+        setStatus('🔍 Monitoring trades... Live monitor active');
     };
+
+
 
     // Recalculate on config change
     useEffect(() => {
@@ -628,15 +617,38 @@ export default function SimpleAITrading({ show, onClose, mode = 'paper' }) {
                                 🚀 Execute All Trades
                             </button>
                             <button
+                                onClick={() => setShowMonitor(true)}
+                                disabled={!tradeMonitorService.getStatus().active}
+                                className="px-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold py-3 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
+                            >
+                                📊 View Monitor
+                            </button>
+                            <button
                                 onClick={() => {
+                                    // Stop any active monitoring
+                                    tradeMonitorService.stopMonitoring();
+
+                                    // Reset all states
                                     setStocks([]);
                                     setAllocation(null);
                                     setMarketSentiment(null);
                                     setStatus('');
+                                    setIsLoading(false);
+                                    setShowMonitor(false);
+
+                                    // Reset config to defaults
+                                    setConfig({
+                                        totalCapital: 100000,
+                                        basketLossPercent: 2,
+                                        basketProfitPercent: 5,
+                                        riskRewardRatio: 2.5,
+                                        stopLossPercent: 1,
+                                        capitalCapPercent: 30
+                                    });
                                 }}
                                 className="px-6 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg transition-all duration-200"
                             >
-                                Reset
+                                🔄 Reset
                             </button>
                             <button
                                 onClick={onClose}
@@ -648,6 +660,9 @@ export default function SimpleAITrading({ show, onClose, mode = 'paper' }) {
                     </div>
                 </motion.div>
             </div>
+
+            {/* Live Trade Monitor Popup */}
+            <LiveTradeMonitor show={showMonitor} onClose={() => setShowMonitor(false)} />
         </AnimatePresence>
     );
 }
