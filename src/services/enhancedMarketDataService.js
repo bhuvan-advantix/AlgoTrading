@@ -3,10 +3,13 @@
  * Fetches 1-month OHLCV data from Yahoo Finance for intraday trading analysis
  */
 
+import { MARKET_API_URL } from '../config.js';
+
 class EnhancedMarketDataService {
     constructor() {
         this.cache = new Map();
         this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
+        this.baseURL = MARKET_API_URL; // Use production URL
     }
 
     /**
@@ -20,7 +23,7 @@ class EnhancedMarketDataService {
         if (cached) return cached;
 
         try {
-            const response = await fetch(`/api/market/ohlcv/${symbol}?period=1mo`);
+            const response = await fetch(`${this.baseURL}/market/ohlcv/${symbol}?period=1mo`);
             if (!response.ok) {
                 throw new Error(`Failed to fetch OHLCV for ${symbol}`);
             }
@@ -194,7 +197,7 @@ class EnhancedMarketDataService {
      */
     async getQuickQuote(symbol) {
         try {
-            const response = await fetch(`/api/market/quote/${symbol}`);
+            const response = await fetch(`${this.baseURL}/quote/${symbol}`);
             if (!response.ok) throw new Error('Quote fetch failed');
             return await response.json();
         } catch (error) {
