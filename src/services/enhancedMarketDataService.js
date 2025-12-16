@@ -199,7 +199,15 @@ class EnhancedMarketDataService {
         try {
             const response = await fetch(`${this.baseURL}/quote/${symbol}`);
             if (!response.ok) throw new Error('Quote fetch failed');
-            return await response.json();
+            const data = await response.json();
+
+            // Map backend response to expected format
+            return {
+                price: data.currentPrice || 0,
+                changePercent: data.dailyChangePct || 0,
+                currency: data.currency || 'INR',
+                symbol: data.symbol || symbol
+            };
         } catch (error) {
             console.error(`Error fetching quote for ${symbol}:`, error);
             return { price: 0, changePercent: 0 };
