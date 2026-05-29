@@ -319,7 +319,7 @@ export default function TradingViewProfessional() {
             {/* Mobile: Shorter title */}
             <h1 className="block md:hidden text-lg font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-300">Paper Trading</h1>
             {/* Desktop: Full title */}
-            <h1 className="hidden md:block text-2xl lg:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-300">Paper Trading Terminal</h1>
+            <h1 className="hidden md:block text-2xl lg:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-300"> Trading Terminal</h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">Practice trading with live market data</p>
           </div>
 
@@ -329,12 +329,7 @@ export default function TradingViewProfessional() {
               <span className="font-medium">{now.toLocaleString()}</span>
             </div>
             <div className="flex gap-2 w-full md:w-auto">
-              <button
-                onClick={() => setShowAITrading(true)}
-                className="flex-1 md:flex-none justify-center items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg text-xs sm:text-sm font-bold text-white shadow-lg shadow-purple-500/30 hover:from-purple-700 hover:to-indigo-700 whitespace-nowrap transition-all"
-              >
-                ⚡ AI Trading
-              </button>
+              
               <button className="flex-1 md:flex-none justify-center items-center px-3 py-2 bg-slate-800/60 border border-slate-700/30 rounded-lg text-xs sm:text-sm text-slate-200 hover:bg-slate-800/80 whitespace-nowrap">Export</button>
               <button className="flex-1 md:flex-none justify-center items-center px-3 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-lg text-xs sm:text-sm font-semibold shadow-md whitespace-nowrap">Reset</button>
             </div>

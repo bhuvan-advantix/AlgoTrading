@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { subscribePrice, placeMarketOrder, readState } from '../../utils/paperTradingStore';
-import AITradingModal from './AITradingModal';
+import SimpleAITrading from './SimpleAITrading';
 import MarketDataService from '../../services/marketDataService';
 
 export default function OrderForm({ symbol, quote }) {
@@ -1162,14 +1162,10 @@ export default function OrderForm({ symbol, quote }) {
       }
 
       {/* AI Trading Modal */}
-      <AITradingModal
+      <SimpleAITrading
         show={showAITradingModal}
         onClose={() => setShowAITradingModal(false)}
-        config={aiConfig}
-        setConfig={setAiConfig}
-        onStart={handleStartAITrading}
-        isActive={aiTradingActive}
-        logs={aiTradingLogs}
+        mode="paper"
       />
     </div >
   );

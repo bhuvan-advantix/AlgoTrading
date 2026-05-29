@@ -1,25 +1,60 @@
-// AI Service for Intelligent Stock Recommendations
+/**
+ * ============================================================================
+ * AI-POWERED STOCK TRADING SIGNAL GENERATOR
+ * ============================================================================
+ * 
+ * This service integrates with Mistral AI to provide intelligent stock
+ * recommendations for intraday trading on the NSE (National Stock Exchange).
+ * 
+ * Key Features:
+ * - Budget-aware stock recommendations
+ * - 100-point scoring system across 5 key factors
+ * - Maximum 5 stocks per recommendation (intraday trading requirement)
+ * - Real-time market sentiment analysis
+ * - Individual stock analysis with buy/sell/hold recommendations
+ * 
+ * @author Your Name
+ * @version 1.0.0
+ * ============================================================================
+ */
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
 const MISTRAL_API_KEY = 'BJLKkmEWSQxZp7OzUoACIyxxWGWbnP6x';
+const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
+const MISTRAL_MODEL = 'mistral-large-latest';
+const MAX_STOCKS_LIMIT = 5; // Intraday trading requirement
+
+// ============================================================================
+// AI SERVICE CLASS
+// ============================================================================
 
 class GeminiAIService {
     constructor() {
         this.apiKey = MISTRAL_API_KEY;
-        this.baseUrl = 'https://api.mistral.ai/v1/chat/completions';
-        this.model = 'mistral-large-latest'; // Best Mistral model
+        this.baseUrl = MISTRAL_API_URL;
+        this.model = MISTRAL_MODEL;
     }
 
+    // ========================================================================
+    // STOCK RECOMMENDATIONS
+    // ========================================================================
+
     /**
-     * Get AI-powered stock recommendations based on market conditions and user budget
-     * CRITICAL: Maximum 5 stocks only (intraday trading requirement)
-     * @param {number} budget - User's investment budget
+     * Get AI-powered stock recommendations based on market conditions and budget
+     * 
+     * @param {number} budget - User's investment budget in INR
      * @param {string} marketCondition - Current market sentiment (bullish/bearish/neutral)
-     * @returns {Promise<Array>} Array of max 5 stock symbols with 100-point scores
+     * @returns {Promise<Array>} Array of max 5 stock recommendations with scores
+     * 
+     * @example
+     * const recommendations = await aiService.getStockRecommendations(50000, 'bullish');
      */
     async getStockRecommendations(budget, marketCondition = 'neutral') {
-        const MAX_STOCKS = 5; // CRITICAL: Never exceed 5 stocks
-
         try {
-            const prompt = this.buildRecommendationPrompt(budget, marketCondition, MAX_STOCKS);
+            const prompt = this.buildRecommendationPrompt(budget, marketCondition, MAX_STOCKS_LIMIT);
 
             const response = await fetch(this.baseUrl, {
                 method: 'POST',
@@ -40,36 +75,41 @@ class GeminiAIService {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Mistral AI error:', response.status, errorText);
-                console.error('Using fallback recommendations due to API error');
-                return this.getFallbackRecommendations(MAX_STOCKS);
+                throw new Error(`Mistral AI API Error: ${response.status} - ${errorText}`);
             }
 
             const data = await response.json();
-            console.log('Mistral AI response received:', data);
+            console.log('✓ Mistral AI response received');
 
-            const recommendations = this.parseOpenRouterResponse(data);
-            console.log('Parsed recommendations:', recommendations);
+            const recommendations = this.parseAIResponse(data);
 
-            // CRITICAL: Enforce 5-stock limit
-            const limitedRecs = recommendations.slice(0, MAX_STOCKS);
+            // Enforce stock limit
+            const limitedRecs = recommendations.slice(0, MAX_STOCKS_LIMIT);
 
             if (limitedRecs.length === 0) {
-                console.warn('No valid recommendations from AI, using fallback');
-                return this.getFallbackRecommendations(MAX_STOCKS);
+                throw new Error('No valid recommendations received from AI');
             }
 
-            console.log('Returning AI recommendations:', limitedRecs);
+            console.log(`✓ Returning ${limitedRecs.length} AI recommendations`);
             return limitedRecs;
+
         } catch (error) {
-            console.error('Error getting AI recommendations:', error);
-            console.error('Using fallback recommendations due to exception');
-            return this.getFallbackRecommendations(MAX_STOCKS);
+            console.error('✗ Error getting AI recommendations:', error.message);
+            throw error;
         }
     }
 
+    // ========================================================================
+    // PROMPT ENGINEERING
+    // ========================================================================
+
     /**
-     * Build a detailed prompt for Gemini AI with 100-point scoring requirement
+     * Build a comprehensive prompt for AI stock recommendations
+     * 
+     * @param {number} budget - User's total capital
+     * @param {string} marketCondition - Market sentiment
+     * @param {number} count - Number of stocks to recommend
+     * @returns {string} Formatted prompt for AI
      */
     buildRecommendationPrompt(budget, marketCondition, count) {
         const maxPricePerStock = Math.floor(budget * 0.3); // 30% capital cap per stock
@@ -231,159 +271,104 @@ REMEMBER: You generate SIGNALS only. You do NOT trade.
 CRITICAL: Suggest AFFORDABLE stocks based on user's capital!`;
     }
 
-    /**
-     * Parse Gemini AI response and extract stock recommendations with 100-point scores
-     */
-    parseGeminiResponse(data) {
-        try {
-            if (!data.candidates || data.candidates.length === 0) {
-                return [];
-            }
-
-            const content = data.candidates[0].content;
-            if (!content || !content.parts || content.parts.length === 0) {
-                return [];
-            }
-
-            let text = content.parts[0].text;
-
-            // Remove markdown code blocks if present
-            text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-            // Parse JSON
-            const parsed = JSON.parse(text);
-
-            if (parsed.recommendations && Array.isArray(parsed.recommendations)) {
-                return parsed.recommendations.map(rec => {
-                    // Validate score breakdown
-                    const breakdown = rec.scoreBreakdown || {
-                        globalNews: 10,
-                        usAsiaTrend: 10,
-                        stockNews: 10,
-                        technical: 10,
-                        fundamentals: 10
-                    };
-
-                    const totalScore = rec.totalScore ||
-                        (breakdown.globalNews + breakdown.usAsiaTrend +
-                            breakdown.stockNews + breakdown.technical + breakdown.fundamentals);
-
-                    return {
-                        symbol: rec.symbol,
-                        name: rec.name || rec.symbol.replace('.NS', ''),
-                        sector: rec.sector || 'Unknown',
-                        bias: rec.bias || 'neutral',
-                        signalStrength: rec.signalStrength || (totalScore / 100),
-                        scoreBreakdown: breakdown,
-                        totalScore: totalScore,
-                        // Legacy compatibility
-                        confidence: totalScore
-                    };
-                });
-            }
-
-            return [];
-        } catch (error) {
-            console.error('Error parsing Gemini response:', error);
-            return [];
-        }
-    }
+    // ========================================================================
+    // RESPONSE PARSING
+    // ========================================================================
 
     /**
-     * Parse OpenRouter API response (uses chat completion format)
+     * Parse AI response and extract stock recommendations
+     * 
+     * @param {Object} data - Raw API response from Mistral AI
+     * @returns {Array} Parsed and validated stock recommendations
      */
-    parseOpenRouterResponse(data) {
+    parseAIResponse(data) {
         try {
             if (!data.choices || data.choices.length === 0) {
-                console.error('No choices in OpenRouter response');
-                return [];
+                throw new Error('No choices in AI response');
             }
 
             const message = data.choices[0].message;
             if (!message || !message.content) {
-                console.error('No message content in OpenRouter response');
-                return [];
+                throw new Error('No message content in AI response');
             }
 
+            // Clean response text
             let text = message.content;
-
-            // Remove markdown code blocks if present
             text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
             // Parse JSON
             const parsed = JSON.parse(text);
 
-            if (parsed.recommendations && Array.isArray(parsed.recommendations)) {
-                return parsed.recommendations.map(rec => {
-                    // Validate score breakdown
-                    const breakdown = rec.scoreBreakdown || {
-                        globalNews: 10,
-                        usAsiaTrend: 10,
-                        stockNews: 10,
-                        technical: 10,
-                        fundamentals: 10
-                    };
-
-                    const totalScore = rec.totalScore ||
-                        (breakdown.globalNews + breakdown.usAsiaTrend +
-                            breakdown.stockNews + breakdown.technical + breakdown.fundamentals);
-
-                    return {
-                        symbol: rec.symbol,
-                        name: rec.name || rec.symbol.replace('.NS', ''),
-                        sector: rec.sector || 'Unknown',
-                        bias: rec.bias || 'neutral',
-                        signalStrength: rec.signalStrength || (totalScore / 100),
-                        scoreBreakdown: breakdown,
-                        totalScore: totalScore,
-                        // Legacy compatibility
-                        confidence: totalScore
-                    };
-                });
+            if (!parsed.recommendations || !Array.isArray(parsed.recommendations)) {
+                throw new Error('Invalid recommendations format');
             }
 
-            return [];
+            // Validate and normalize each recommendation
+            return parsed.recommendations.map(rec => this.validateRecommendation(rec));
+
         } catch (error) {
-            console.error('Error parsing OpenRouter response:', error);
-            return [];
+            console.error('✗ Error parsing AI response:', error.message);
+            throw new Error(`Failed to parse AI response: ${error.message}`);
         }
     }
 
     /**
-     * Fallback recommendations if Gemini API fails
-     * Uses a minimal set of highly liquid NSE stocks
+     * Validate and normalize a single stock recommendation
+     * 
+     * @param {Object} rec - Raw recommendation object
+     * @returns {Object} Validated and normalized recommendation
      */
-    getFallbackRecommendations(count) {
-        const fallbackStocks = [
-            { symbol: 'RELIANCE.NS', name: 'Reliance Industries', sector: 'Energy', confidence: 75 },
-            { symbol: 'TCS.NS', name: 'Tata Consultancy Services', sector: 'IT', confidence: 75 },
-            { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', sector: 'Banking', confidence: 75 },
-            { symbol: 'INFY.NS', name: 'Infosys', sector: 'IT', confidence: 75 },
-            { symbol: 'ICICIBANK.NS', name: 'ICICI Bank', sector: 'Banking', confidence: 75 },
-            { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel', sector: 'Telecom', confidence: 70 },
-            { symbol: 'ITC.NS', name: 'ITC Limited', sector: 'FMCG', confidence: 70 },
-            { symbol: 'SBIN.NS', name: 'State Bank of India', sector: 'Banking', confidence: 70 },
-            { symbol: 'LT.NS', name: 'Larsen & Toubro', sector: 'Infrastructure', confidence: 70 },
-            { symbol: 'WIPRO.NS', name: 'Wipro', sector: 'IT', confidence: 70 }
-        ];
+    validateRecommendation(rec) {
+        // Validate score breakdown
+        const breakdown = rec.scoreBreakdown || {
+            globalNews: 10,
+            usAsiaTrend: 10,
+            stockNews: 10,
+            technical: 10,
+            fundamentals: 10
+        };
 
-        return fallbackStocks.slice(0, count).map(stock => ({
-            ...stock,
-            estimatedPrice: 0, // Will be fetched from live API
-            reason: 'Fallback recommendation - highly liquid stock'
-        }));
+        // Calculate total score
+        const totalScore = rec.totalScore || (
+            breakdown.globalNews +
+            breakdown.usAsiaTrend +
+            breakdown.stockNews +
+            breakdown.technical +
+            breakdown.fundamentals
+        );
+
+        return {
+            symbol: rec.symbol,
+            name: rec.name || rec.symbol.replace('.NS', ''),
+            sector: rec.sector || 'Unknown',
+            bias: rec.bias || 'neutral',
+            signalStrength: rec.signalStrength || (totalScore / 100),
+            scoreBreakdown: breakdown,
+            totalScore: totalScore,
+            confidence: totalScore // Legacy compatibility
+        };
     }
 
+    // ========================================================================
+    // MARKET SENTIMENT ANALYSIS
+    // ========================================================================
+
     /**
-     * Analyze market sentiment using Gemini AI
+     * Analyze current market sentiment using AI
+     * 
+     * @returns {Promise<Object>} Market sentiment analysis
+     * 
+     * @example
+     * const sentiment = await aiService.analyzeMarketSentiment();
+     * // { sentiment: 'bullish', analysis: '...', confidence: 75 }
      */
     async analyzeMarketSentiment() {
         try {
-            const prompt = `Analyze the current Indian stock market sentiment based on recent trends, news, and economic indicators. 
-            
+            const prompt = `Analyze the current Indian stock market sentiment based on recent trends, news, and economic indicators.
+
 Provide a brief analysis (2-3 sentences) and classify the market as:
 - "bullish" (positive, upward trend)
-- "bearish" (negative, downward trend)  
+- "bearish" (negative, downward trend)
 - "neutral" (mixed signals, sideways)
 
 OUTPUT FORMAT (JSON only):
@@ -395,30 +380,30 @@ OUTPUT FORMAT (JSON only):
 
 Return ONLY valid JSON.`;
 
-            const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+            const response = await fetch(this.baseUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: prompt
-                        }]
+                    model: this.model,
+                    messages: [{
+                        role: 'user',
+                        content: prompt
                     }],
-                    generationConfig: {
-                        temperature: 0.5,
-                        maxOutputTokens: 512,
-                    }
+                    temperature: 0.5,
+                    max_tokens: 512
                 })
             });
 
             if (!response.ok) {
-                return { sentiment: 'neutral', analysis: 'Market analysis unavailable', confidence: 50 };
+                throw new Error('Market sentiment analysis failed');
             }
 
             const data = await response.json();
-            let text = data.candidates[0].content.parts[0].text;
+            const message = data.choices[0].message;
+            let text = message.content;
             text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
             const parsed = JSON.parse(text);
@@ -427,14 +412,31 @@ Return ONLY valid JSON.`;
                 analysis: parsed.analysis || 'Market analysis unavailable',
                 confidence: parsed.confidence || 50
             };
+
         } catch (error) {
-            console.error('Error analyzing market sentiment:', error);
-            return { sentiment: 'neutral', analysis: 'Market analysis unavailable', confidence: 50 };
+            console.error('✗ Error analyzing market sentiment:', error.message);
+            return {
+                sentiment: 'neutral',
+                analysis: 'Market analysis unavailable',
+                confidence: 50
+            };
         }
     }
 
+    // ========================================================================
+    // INDIVIDUAL STOCK ANALYSIS
+    // ========================================================================
+
     /**
-     * Get AI-powered stock analysis for a specific symbol
+     * Get AI-powered analysis for a specific stock
+     * 
+     * @param {string} symbol - Stock symbol (e.g., 'RELIANCE.NS')
+     * @param {number} currentPrice - Current stock price
+     * @param {Array} news - Array of recent news items
+     * @returns {Promise<Object>} Stock analysis with recommendation
+     * 
+     * @example
+     * const analysis = await aiService.analyzeStock('TCS.NS', 3500, newsArray);
      */
     async analyzeStock(symbol, currentPrice, news = []) {
         try {
@@ -462,51 +464,49 @@ OUTPUT FORMAT (JSON only):
 
 Return ONLY valid JSON.`;
 
-            const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+            const response = await fetch(this.baseUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: prompt
-                        }]
+                    model: this.model,
+                    messages: [{
+                        role: 'user',
+                        content: prompt
                     }],
-                    generationConfig: {
-                        temperature: 0.6,
-                        maxOutputTokens: 256,
-                    }
+                    temperature: 0.6,
+                    max_tokens: 256
                 })
             });
 
             if (!response.ok) {
-                return this.getDefaultAnalysis();
+                throw new Error('Stock analysis failed');
             }
 
             const data = await response.json();
-            let text = data.candidates[0].content.parts[0].text;
+            const message = data.choices[0].message;
+            let text = message.content;
             text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
             return JSON.parse(text);
+
         } catch (error) {
-            console.error('Error analyzing stock:', error);
-            return this.getDefaultAnalysis();
+            console.error('✗ Error analyzing stock:', error.message);
+            return {
+                recommendation: 'HOLD',
+                confidence: 50,
+                reason: 'Analysis unavailable',
+                stopLossPercent: 2,
+                targetPercent: 5
+            };
         }
     }
-
-    /**
-     * Default analysis if AI fails
-     */
-    getDefaultAnalysis() {
-        return {
-            recommendation: 'HOLD',
-            confidence: 50,
-            reason: 'Analysis unavailable',
-            stopLossPercent: 2,
-            targetPercent: 5
-        };
-    }
 }
+
+// ============================================================================
+// EXPORT SINGLETON INSTANCE
+// ============================================================================
 
 export default new GeminiAIService();

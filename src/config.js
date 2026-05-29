@@ -3,11 +3,11 @@ export const ZERODHA_API_KEY = "73k6zq3vc6hr7ver"; // Placeholder for frontend c
 export const FINNHUB_API_KEY = "d3o7cd1r01qmj8304e7gd3o7cd1r01qmj8304e80"; // Replace with your actual Finnhub API key
 export const TWELVEDATA_API_KEY = "293f5d774ee04a54ac65869553752fd4"; // Replace with your actual TwelveData API key
 
-// Base API URLs - Production Render backends
+// Base API URLs
 // Main backend (server/server.js - Zerodha/Kite)
-export const API_URL = import.meta.env.VITE_API_URL || 'https://algotrading-2sbm.onrender.com';
+export const API_URL = import.meta.env.VITE_API_URL;
 // Market data backend (backend/server.js - Paper Trading/Yahoo Finance)
-export const MARKET_API_URL = import.meta.env.VITE_MARKET_API_URL || 'https://algotrading-1-v2p7.onrender.com/api';
+export const MARKET_API_URL = import.meta.env.VITE_MARKET_API_URL;
 
 // API Base paths (for development proxy)
 export const API_BASE = import.meta.env.VITE_API_BASE || '/api';

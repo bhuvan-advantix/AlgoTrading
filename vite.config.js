@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost:8081',  // Backend server with market data
+          target: env.VITE_MARKET_API_URL ? env.VITE_MARKET_API_URL.replace(/\/api$/, '') : 'http://localhost:8081',
           changeOrigin: true,
           secure: false
         },

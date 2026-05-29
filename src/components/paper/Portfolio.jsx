@@ -109,12 +109,6 @@ export default function Portfolio() {
               <span className="text-white font-semibold">₹{totalValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div>
-              <span className="text-slate-400">Day's P&L: </span>
-              <span className={`font-semibold ${totalDailyPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {totalDailyPnl >= 0 ? '+' : ''}₹{totalDailyPnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div>
               <span className="text-slate-400">Total P&L: </span>
               <span className={`font-semibold ${totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {totalUnrealizedPnl >= 0 ? '+' : ''}₹{totalUnrealizedPnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -133,13 +127,12 @@ export default function Portfolio() {
               <thead className="text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700/30">
                 <tr>
                   <th className="text-left py-3 px-4">Symbol</th>
-                  <th className="text-right py-3 px-4">Qty</th>
-                  <th className="text-right py-3 px-4">Avg Price</th>
-                  <th className="text-right py-3 px-4">LTP</th>
-                  <th className="text-right py-3 px-4">Prev Close</th>
-                  <th className="text-right py-3 px-4">Value</th>
-                  <th className="text-right py-3 px-4">Day's P&L</th>
-                  <th className="text-right py-3 px-4">Unrealized P&L</th>
+                  <th className="text-right py-3 px-4">Quantity</th>
+                  <th className="text-right py-3 px-4">Buy Price</th>
+                  <th className="text-right py-3 px-4">Amount Invested</th>
+                  <th className="text-right py-3 px-4">Current Price</th>
+                  <th className="text-right py-3 px-4">Market Value</th>
+                  <th className="text-right py-3 px-4">Profit/Loss</th>
                   <th className="text-center py-3 px-4">Action</th>
                 </tr>
               </thead>
@@ -158,21 +151,25 @@ export default function Portfolio() {
                         {symbol}
                       </td>
                       <td className="py-3 px-4 text-right text-slate-200">{quantity?.toFixed(4)}</td>
-                      <td className="py-3 px-4 text-right font-mono text-slate-300">₹{avg_price?.toFixed(2)}</td>
-                      <td className="py-3 px-4 text-right font-mono text-slate-200">
-                        {current_price ? `₹${current_price.toFixed(2)}` : '—'}
+                      <td className="py-3 px-4 text-right font-mono text-cyan-400">₹{avg_price?.toFixed(2)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-slate-300">
+                        ₹{(avg_price * quantity)?.toFixed(2)}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-slate-400">
-                        {prev_close ? `₹${prev_close.toFixed(2)}` : '—'}
+                      <td className="py-3 px-4 text-right font-mono text-emerald-400">
+                        {current_price ? `₹${current_price.toFixed(2)}` : '—'}
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-slate-200">
                         {market_value ? `₹${market_value.toFixed(2)}` : '—'}
                       </td>
-                      <td className={`py-3 px-4 text-right font-semibold ${daily_pnl !== null ? (daily_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400') : 'text-slate-500'}`}>
-                        {daily_pnl !== null ? `${daily_pnl >= 0 ? '+' : ''}₹${daily_pnl.toFixed(2)}` : '—'}
-                      </td>
-                      <td className={`py-3 px-4 text-right font-semibold ${unrealized_pnl !== null ? (unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400') : 'text-slate-500'}`}>
-                        {unrealized_pnl !== null ? `${unrealized_pnl >= 0 ? '+' : ''}₹${unrealized_pnl.toFixed(2)}` : '—'}
+                      <td className={`py-3 px-4 text-right font-bold ${unrealized_pnl !== null ? (unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400') : 'text-slate-500'}`}>
+                        {unrealized_pnl !== null ? (
+                          <div>
+                            <div>{unrealized_pnl >= 0 ? '+' : ''}₹{unrealized_pnl.toFixed(2)}</div>
+                            <div className="text-xs opacity-75">
+                              ({unrealized_pnl >= 0 ? '+' : ''}{((unrealized_pnl / (avg_price * quantity)) * 100).toFixed(2)}%)
+                            </div>
+                          </div>
+                        ) : '—'}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <button

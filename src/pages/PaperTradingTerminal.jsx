@@ -54,7 +54,7 @@ export default function PaperTradingTerminal() {
       <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin h-12 w-12 border-4 border-slate-700 border-t-cyan-500 rounded-full mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading Paper Trading Terminal...</p>
+          <p className="text-slate-400">Loading  Trading Terminal...</p>
         </div>
       </div>
     );
@@ -77,7 +77,7 @@ export default function PaperTradingTerminal() {
               </h1>
               {/* Desktop: Full title */}
               <h1 className="hidden md:block text-3xl lg:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent mb-2 whitespace-nowrap">
-                Paper Trading Terminal
+                 Trading Terminal
               </h1>
               <p className="text-xs sm:text-sm text-slate-400">Practice trading with live market data • Real-time price updates</p>
             </div>

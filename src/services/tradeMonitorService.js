@@ -8,6 +8,71 @@ class TradeMonitorService {
         this.monitorInterval = null;
         this.checkIntervalMs = 5000; // Check prices every 5 seconds
         this.maxHoldTimeHours = 3; // Auto-exit after 3 hours
+        this.storageKey = 'trade_monitor_state';
+
+        // Restore monitors from localStorage on initialization
+        this.restoreMonitors();
+    }
+
+    /**
+     * Save monitors to localStorage
+     */
+    saveMonitors() {
+        const monitorsArray = Array.from(this.activeMonitors.entries()).map(([symbol, monitor]) => ({
+            symbol,
+            ...monitor,
+            entryTime: monitor.entryTime ? monitor.entryTime.getTime() : null
+        }));
+
+        localStorage.setItem(this.storageKey, JSON.stringify({
+            monitors: monitorsArray,
+            timestamp: Date.now()
+        }));
+    }
+
+    /**
+     * Restore monitors from localStorage
+     */
+    restoreMonitors() {
+        try {
+            const saved = localStorage.getItem(this.storageKey);
+            if (!saved) return;
+
+            const { monitors, timestamp } = JSON.parse(saved);
+
+            // Only restore if saved within last 4 hours
+            const hoursSinceSave = (Date.now() - timestamp) / (1000 * 60 * 60);
+            if (hoursSinceSave > 4) {
+                console.log('⏰ Saved monitors too old, clearing...');
+                localStorage.removeItem(this.storageKey);
+                return;
+            }
+
+            // Restore monitors
+            monitors.forEach(mon => {
+                this.activeMonitors.set(mon.symbol, {
+                    ...mon,
+                    entryTime: mon.entryTime ? new Date(mon.entryTime) : null,
+                    lastCheck: null
+                });
+            });
+
+            if (this.activeMonitors.size > 0) {
+                console.log(`✅ Restored ${this.activeMonitors.size} monitors from localStorage`);
+                // Restart monitoring loop
+                this.startMonitoringLoop();
+            }
+        } catch (error) {
+            console.error('Error restoring monitors:', error);
+            localStorage.removeItem(this.storageKey);
+        }
+    }
+
+    /**
+     * Clear saved monitors
+     */
+    clearSavedMonitors() {
+        localStorage.removeItem(this.storageKey);
     }
 
     /**
@@ -41,6 +106,9 @@ class TradeMonitorService {
             this.activeMonitors.set(rec.symbol, monitor);
             console.log(`📊 Monitoring ${rec.symbol}: Entry=${rec.entry}, Stop=${rec.stop}, Target=${rec.target}`);
         });
+
+        // Save to localStorage
+        this.saveMonitors();
 
         // Start price monitoring loop
         this.startMonitoringLoop();
@@ -134,6 +202,9 @@ class TradeMonitorService {
                 // Explicitly update the Map to ensure changes persist
                 this.activeMonitors.set(monitor.symbol, monitor);
 
+                // Save to localStorage
+                this.saveMonitors();
+
                 console.log(`🎯 Position opened for ${monitor.symbol}: ${monitor.quantity} shares @ ₹${currentPrice}`);
                 console.log(`📊 Monitor updated - Status: ${monitor.status}, Entry Time: ${monitor.entryTime}`);
             } else {
@@ -180,6 +251,9 @@ class TradeMonitorService {
             await this.executeSellOrder(monitor, currentPrice, exitReason);
             monitor.status = 'CLOSED';
             this.activeMonitors.delete(monitor.symbol);
+
+            // Save to localStorage
+            this.saveMonitors();
         }
     }
 
@@ -300,6 +374,7 @@ class TradeMonitorService {
         }
 
         this.activeMonitors.clear();
+        this.clearSavedMonitors(); // Clear localStorage
         console.log('⏹️ Trade monitoring stopped');
     }
 

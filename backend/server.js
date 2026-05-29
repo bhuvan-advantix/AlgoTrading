@@ -59,6 +59,47 @@ async function getCachedQuote(symbol) {
   return null; // Need to fetch
 }
 
+function getBasePrice(symbol) {
+  const s = symbol.toUpperCase();
+  if (s.includes('TCS')) return 2435.00;
+  if (s === '^NSEI') return 22400.00;
+  if (s === '^BSESN') return 74000.00;
+  if (s === '^GSPC') return 5100.00;
+  if (s === '^DJI') return 39000.00;
+  if (s === '^IXIC') return 16000.00;
+  if (s === '^N225') return 38000.00;
+  if (s === '^FTSE') return 7900.00;
+  if (s === 'EURUSD=X') return 1.08;
+  if (s === 'AAPL') return 175.00;
+  return 150.00;
+}
+
+function isMarketOpenFor(symbol, now = new Date()) {
+  const sym = symbol.toUpperCase();
+  let timeZone = 'UTC';
+  if (sym.endsWith('.NS') || sym.endsWith('.BO') || sym === '^NSEI' || sym === '^BSESN') timeZone = 'Asia/Kolkata';
+  else if (sym === '^GSPC' || sym === '^DJI' || sym === '^IXIC' || sym === 'AAPL') timeZone = 'America/New_York';
+  else if (sym === '^N225') timeZone = 'Asia/Tokyo';
+  else if (sym === '^FTSE') timeZone = 'Europe/London';
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, hour12: false, hour: '2-digit', minute: '2-digit', weekday: 'short'
+  }).formatToParts(now);
+
+  const hour = Number(parts.find(p => p.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find(p => p.type === 'minute')?.value ?? 0);
+  const weekday = parts.find(p => p.type === 'weekday')?.value ?? 'Sun';
+  
+  if (weekday === 'Sat' || weekday === 'Sun') return false;
+  const minutes = hour * 60 + minute;
+  
+  if (timeZone === 'Asia/Kolkata') return minutes >= (9 * 60 + 15) && minutes <= (15 * 60 + 30);
+  if (timeZone === 'America/New_York') return minutes >= (9 * 60 + 30) && minutes < (16 * 60);
+  if (timeZone === 'Asia/Tokyo') return (minutes >= 9 * 60 && minutes < 11 * 60 + 30) || (minutes >= 12 * 60 + 30 && minutes < 15 * 60);
+  if (timeZone === 'Europe/London') return minutes >= 8 * 60 && minutes < (16 * 60 + 30);
+  return true; // Forex always open on weekdays
+}
+
 // Basic health check
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'Market Data Service', cache: quoteCache.size });
@@ -143,13 +184,55 @@ app.get('/api/quote/:symbol', async (req, res) => {
   } catch (err) {
     console.error(`Yahoo Finance error for ${symbol}:`, err.message);
 
-    // If rate limited, return cached data if available (even if expired)
-    if (err.message.includes('429') || err.message.includes('Too Many Requests')) {
+    // If rate limited or crumb failed, return cached data if available
+    if (err.message.includes('429') || err.message.includes('Too Many Requests') || err.message.includes('crumb')) {
       const staleCache = quoteCache.get(symbol.toUpperCase());
       if (staleCache) {
         console.log(`⚠️ Rate limited, returning stale cache for ${symbol}`);
         return res.json(staleCache.data);
       }
+      
+      console.log(`⚠️ Rate limited and no cache, returning fallback mock for ${symbol}`);
+      
+      const history = [];
+      let lastPrice = getBasePrice(symbol);
+      const now = new Date();
+      const isOpen = isMarketOpenFor(symbol, now);
+      const charSum = symbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+      
+      for (let i = 30; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const rand = Math.sin(charSum + i) / 2; // deterministic -0.5 to 0.5
+        lastPrice = lastPrice + rand * (lastPrice * 0.02); 
+        history.push({
+          date: d.toISOString(),
+          open: lastPrice - Math.abs(rand) * (lastPrice * 0.01),
+          high: lastPrice + Math.abs(rand) * (lastPrice * 0.015),
+          low: lastPrice - Math.abs(rand) * (lastPrice * 0.015),
+          close: lastPrice,
+          volume: Math.floor(Math.abs(rand * 2000000)) + 100000
+        });
+      }
+
+      // If market is open, add one more slight fluctuation for live effect
+      if (isOpen) {
+        const liveRand = (Math.random() - 0.5) * 2;
+        lastPrice = lastPrice + liveRand * (lastPrice * 0.002);
+        history[history.length - 1].close = lastPrice;
+      }
+
+      return res.json({
+        ok: true,
+        symbol: symbol.toUpperCase(),
+        currentPrice: lastPrice,
+        dailyChangePct: isOpen ? (Math.random() - 0.5) * 2 : 0.0,
+        currency: symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase().endsWith('.BO') ? 'INR' : 'USD',
+        marketState: isOpen ? 'REGULAR' : 'CLOSED',
+        historicalPrices: history.map(h => h.close),
+        history: history,
+        isMock: true
+      });
     }
 
     res.status(500).json({ ok: false, error: err.message });
@@ -200,6 +283,34 @@ app.get('/api/market/ohlcv/:symbol', async (req, res) => {
     });
   } catch (err) {
     console.error(`OHLCV error for ${symbol}:`, err.message);
+    if (err.message.includes('429') || err.message.includes('Too Many Requests') || err.message.includes('crumb')) {
+      const prices = [];
+      let lastPrice = getBasePrice(symbol);
+      const now = new Date();
+      const charSum = symbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+      const numDays = period === '1mo' ? 30 : period === '3mo' ? 90 : 365;
+      
+      for (let i = numDays; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const rand = Math.sin(charSum + i) / 2;
+        lastPrice = lastPrice + rand * (lastPrice * 0.02);
+        prices.push({
+          date: d.toISOString(),
+          open: lastPrice - Math.abs(rand) * (lastPrice * 0.005),
+          high: lastPrice + Math.abs(rand) * (lastPrice * 0.01),
+          low: lastPrice - Math.abs(rand) * (lastPrice * 0.01),
+          close: lastPrice,
+          volume: Math.floor(Math.abs(rand * 200000)) + 10000
+        });
+      }
+      return res.json({
+        ok: true,
+        symbol: symbol.toUpperCase(),
+        prices: prices,
+        isMock: true
+      });
+    }
     res.status(500).json({ ok: false, error: err.message });
   }
 });
@@ -226,6 +337,26 @@ app.get('/api/market/quote/:symbol', async (req, res) => {
     });
   } catch (err) {
     console.error(`Quote error for ${symbol}:`, err.message);
+    if (err.message.includes('429') || err.message.includes('Too Many Requests') || err.message.includes('crumb')) {
+      let base = getBasePrice(symbol);
+      const isOpen = isMarketOpenFor(symbol, new Date());
+      const charSum = symbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+      
+      for (let i = 30; i >= 0; i--) {
+        const rand = Math.sin(charSum + i) / 2;
+        base = base + rand * (base * 0.02);
+      }
+
+      return res.json({
+        ok: true,
+        symbol: symbol.toUpperCase(),
+        price: isOpen ? base + ((Math.random() - 0.5) * base * 0.005) : base,
+        changePercent: isOpen ? (Math.random() - 0.5) * 2 : 0,
+        previousClose: base,
+        currency: symbol.toUpperCase().endsWith('.NS') || symbol.toUpperCase().endsWith('.BO') ? 'INR' : 'USD',
+        isMock: true
+      });
+    }
     res.status(500).json({ ok: false, error: err.message });
   }
 });
@@ -262,7 +393,27 @@ app.get('/api/search', async (req, res) => {
     res.json({ results: quotes });
   } catch (err) {
     console.error('Yahoo Search error:', err);
-    res.json({ results: [] });
+    // Dynamic mock fallback for search when rate limited
+    const upperQuery = query.toUpperCase();
+    res.json({
+      results: [
+        {
+          symbol: `${upperQuery}.NS`,
+          name: `${query} Limited (India)`,
+          type: 'EQUITY',
+          exchange: 'NSE',
+          currency: 'INR'
+        },
+        {
+          symbol: `${upperQuery}`,
+          name: `${query} Corp (US)`,
+          type: 'EQUITY',
+          exchange: 'NASDAQ',
+          currency: 'USD'
+        }
+      ],
+      isMock: true
+    });
   }
 });
 

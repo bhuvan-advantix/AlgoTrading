@@ -19,12 +19,13 @@ export default function ChartSection({ symbol, quote }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Determine currency symbol based on stock symbol
   const getCurrencySymbol = () => {
-    if (!symbol) return '$';
-    const upperSymbol = symbol.toUpperCase();
-    // Indian stocks end with .NS (NSE) or .BO (BSE)
-    return (upperSymbol.endsWith('.NS') || upperSymbol.endsWith('.BO')) ? '₹' : '$';
+    const currency = quote?.currency || (symbol?.toUpperCase().endsWith('.NS') || symbol?.toUpperCase().endsWith('.BO') ? 'INR' : 'USD');
+    if (currency === 'INR') return '₹';
+    if (currency === 'EUR') return '€';
+    if (currency === 'GBP') return '£';
+    if (currency === 'JPY') return '¥';
+    return '$';
   };
 
   const currencySymbol = getCurrencySymbol();
@@ -158,7 +159,7 @@ export default function ChartSection({ symbol, quote }) {
         <div>
           <h3 className="text-xl font-bold text-white">{symbol}</h3>
           <p className="text-sm text-cyan-400">
-            {quote?.price ? `${quote.currency === 'INR' ? '₹' : '$'}${quote.price.toFixed(2)}` : '—'}
+            {quote?.price ? `${currencySymbol}${quote.price.toFixed(2)}` : '—'}
             {quote?.change != null && (
               <span className={quote.change >= 0 ? 'text-green-400' : 'text-red-400'}>
                 {' '}({quote.change.toFixed(2)}%)

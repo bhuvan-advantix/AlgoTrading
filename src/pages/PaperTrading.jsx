@@ -72,7 +72,7 @@ export default function PaperTrading() {
             </h1>
             {/* Desktop: Full title */}
             <h1 className="hidden md:block text-2xl lg:text-3xl font-bold bg-gradient-to-r from-teal-400 to-purple-500 bg-clip-text text-transparent leading-tight">
-              Paper Trading Terminal
+              Trading Terminal
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm mt-1">Practice trading with simulated data</p>
           </div>
